@@ -1,3 +1,4 @@
+import 'package:trusttunnel/data/model/certificate.dart';
 import 'package:trusttunnel/data/model/vpn_protocol.dart';
 
 /// {@template add_server_request}
@@ -33,4 +34,10 @@ typedef AddServerRequest = ({
 
   /// DNS upstream addresses associated with this server.
   List<String> dnsServers,
+
+  bool ipv6,
+
+  String? tlsPrefix,
+
+  Certificate? certificate,
 });

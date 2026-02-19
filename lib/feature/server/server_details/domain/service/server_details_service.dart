@@ -70,6 +70,9 @@ class ServerDetailsServiceImpl implements ServerDetailsService {
     vpnProtocol: data.protocol,
     dnsServers: data.dnsServers,
     routingProfileId: data.routingProfileId,
+    certificate: data.certificate,
+    ipv6: data.enableIpv6,
+    tlsPrefix: data.tlsPrefix,
   );
 
   @override

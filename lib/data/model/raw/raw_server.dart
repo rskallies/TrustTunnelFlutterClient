@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart';
+import 'package:trusttunnel/common/models/value_data.dart';
+import 'package:trusttunnel/data/model/certificate.dart';
 import 'package:trusttunnel/data/model/vpn_protocol.dart';
 
 /// {@template raw_server}
@@ -46,6 +48,12 @@ class RawServer {
   /// Whether this server is marked as the currently selected one.
   final bool selected;
 
+  final Certificate? certificate;
+
+  final String? tlsPrefix;
+
+  final bool ipv6;
+
   /// {@macro raw_server}
   const RawServer({
     required this.id,
@@ -57,6 +65,9 @@ class RawServer {
     required this.vpnProtocol,
     required this.dnsServers,
     required this.routingProfileId,
+    required this.ipv6,
+    this.certificate,
+    this.tlsPrefix,
     this.selected = false,
   });
 
@@ -72,6 +83,9 @@ class RawServer {
     Object.hashAll(dnsServers),
     routingProfileId,
     selected,
+    certificate,
+    ipv6,
+    tlsPrefix,
   );
 
   @override
@@ -85,7 +99,10 @@ class RawServer {
       'vpnProtocol: $vpnProtocol, '
       'dnsServers: $dnsServers, '
       'routingProfileId: $routingProfileId, '
-      'selected: $selected'
+      'selected: $selected, '
+      'ipv6: $ipv6, '
+      'tlsPrefix: $tlsPrefix, '
+      'certificate: $certificate, '
       ')';
 
   @override
@@ -102,7 +119,10 @@ class RawServer {
         other.vpnProtocol == vpnProtocol &&
         listEquals(other.dnsServers, dnsServers) &&
         other.routingProfileId == routingProfileId &&
-        other.selected == selected;
+        other.selected == selected &&
+        other.ipv6 == ipv6 &&
+        other.tlsPrefix == tlsPrefix &&
+        other.certificate == certificate;
   }
 
   /// Creates a copy of this server with the given fields replaced.
@@ -119,6 +139,9 @@ class RawServer {
     List<String>? dnsServers,
     int? routingProfileId,
     bool? selected,
+    bool? ipv6,
+    ValueData<Certificate>? certificate,
+    ValueData<String>? tlsPrefix,
   }) => RawServer(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -130,5 +153,8 @@ class RawServer {
     dnsServers: dnsServers ?? this.dnsServers,
     routingProfileId: routingProfileId ?? this.routingProfileId,
     selected: selected ?? this.selected,
+    ipv6: ipv6 ?? this.ipv6,
+    certificate: certificate == null ? this.certificate : certificate.value,
+    tlsPrefix: tlsPrefix == null ? this.tlsPrefix : tlsPrefix.value,
   );
 }

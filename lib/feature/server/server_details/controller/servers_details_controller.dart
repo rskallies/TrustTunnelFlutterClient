@@ -131,7 +131,6 @@ final class ServerDetailsController extends BaseStateController<ServerDetailsSta
         fieldErrors: state.fieldErrors,
         initialData: state.initialData,
         routingProfiles: state.routingProfiles,
-
         data: state.data.copyWith(
           serverName: serverName ?? state.data.serverName,
           ipAddress: ipAddress ?? state.data.ipAddress,
@@ -141,6 +140,8 @@ final class ServerDetailsController extends BaseStateController<ServerDetailsSta
           protocol: protocol ?? state.data.protocol,
           routingProfileId: routingProfileId ?? state.data.routingProfileId,
           dnsServers: dnsServers ?? state.data.dnsServers,
+          enableIpv6: enableIpv6 ?? state.data.enableIpv6,
+          tlsPrefix: clientRandom ?? state.data.tlsPrefix,
         ),
       ),
     );
@@ -192,6 +193,9 @@ final class ServerDetailsController extends BaseStateController<ServerDetailsSta
             password: state.data.password,
             vpnProtocol: state.data.protocol,
             routingProfileId: state.data.routingProfileId,
+            ipv6: state.data.enableIpv6,
+            tlsPrefix: state.data.tlsPrefix,
+            certificate: state.data.certificate,
           ),
         );
       } else {
@@ -205,6 +209,9 @@ final class ServerDetailsController extends BaseStateController<ServerDetailsSta
             password: state.data.password,
             vpnProtocol: state.data.protocol,
             routingProfileId: state.data.routingProfileId,
+            ipv6: state.data.enableIpv6,
+            tlsPrefix: state.data.tlsPrefix,
+            certificate: state.data.certificate,
           ),
         );
       }

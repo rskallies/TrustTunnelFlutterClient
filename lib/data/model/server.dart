@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart';
+import 'package:trusttunnel/common/models/value_data.dart';
+import 'package:trusttunnel/data/model/certificate.dart';
 import 'package:trusttunnel/data/model/routing_profile.dart';
 import 'package:trusttunnel/data/model/vpn_protocol.dart';
 
@@ -47,6 +49,12 @@ class Server {
   /// Whether this server is marked as the currently selected one.
   final bool selected;
 
+  final Certificate? certificate;
+
+  final bool ipv6;
+
+  final String? tlsPrefix;
+
   /// {@macro server}
   const Server({
     required this.id,
@@ -59,6 +67,9 @@ class Server {
     required this.dnsServers,
     required this.routingProfile,
     this.selected = false,
+    this.certificate,
+    required this.ipv6,
+    required this.tlsPrefix,
   });
 
   @override
@@ -73,6 +84,9 @@ class Server {
     Object.hashAll(dnsServers),
     routingProfile,
     selected,
+    certificate,
+    ipv6,
+    tlsPrefix,
   );
 
   @override
@@ -86,7 +100,10 @@ class Server {
       'vpnProtocol: $vpnProtocol, '
       'dnsServers: $dnsServers, '
       'routingProfile: $routingProfile, '
-      'selected: $selected'
+      'selected: $selected,'
+      'ipv6: $ipv6,'
+      'tlsPrefix: $tlsPrefix,'
+      'certificate: $certificate'
       ')';
 
   @override
@@ -103,7 +120,10 @@ class Server {
         other.vpnProtocol == vpnProtocol &&
         listEquals(other.dnsServers, dnsServers) &&
         other.routingProfile == routingProfile &&
-        other.selected == selected;
+        other.selected == selected &&
+        other.ipv6 == ipv6 &&
+        other.tlsPrefix == tlsPrefix &&
+        other.certificate == certificate;
   }
 
   /// Creates a copy of this server with the given fields replaced.
@@ -120,6 +140,9 @@ class Server {
     List<String>? dnsServers,
     RoutingProfile? routingProfile,
     bool? selected,
+    ValueData<Certificate>? certificate,
+    bool? ipv6,
+    String? tlsPrefix,
   }) => Server(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -131,5 +154,8 @@ class Server {
     dnsServers: dnsServers ?? this.dnsServers,
     routingProfile: routingProfile ?? this.routingProfile,
     selected: selected ?? this.selected,
+    certificate: certificate == null ? this.certificate : certificate.value,
+    ipv6: ipv6 ?? this.ipv6,
+    tlsPrefix: tlsPrefix ?? this.tlsPrefix,
   );
 }

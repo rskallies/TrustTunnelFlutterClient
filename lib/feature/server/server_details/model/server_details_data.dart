@@ -74,6 +74,8 @@ class ServerDetailsData {
 
   final String tlsPrefix;
 
+  final bool enableIpv6;
+
   final Certificate? certificate;
 
   /// {@macro server_details_data}
@@ -87,6 +89,7 @@ class ServerDetailsData {
     this.routingProfileId = RoutingProfileUtils.defaultRoutingProfileId,
     this.dnsServers = const <String>[],
     this.tlsPrefix = '',
+    this.enableIpv6 = true,
     this.certificate,
   });
 
@@ -101,6 +104,7 @@ class ServerDetailsData {
     routingProfileId,
     tlsPrefix,
     certificate,
+    enableIpv6,
     Object.hashAll(dnsServers),
   );
 
@@ -114,6 +118,7 @@ class ServerDetailsData {
       'protocol: $protocol, '
       'routingProfileId: $routingProfileId, '
       'tlsPrefix: $tlsPrefix, '
+      'enableIpv6: $enableIpv6, '
       'certificate: $certificate, '
       'dnsServers: $dnsServers'
       ')';
@@ -130,6 +135,7 @@ class ServerDetailsData {
         other.password == password &&
         other.protocol == protocol &&
         other.routingProfileId == routingProfileId &&
+        other.enableIpv6 == enableIpv6 &&
         other.tlsPrefix == tlsPrefix &&
         other.certificate == certificate &&
         listEquals(other.dnsServers, dnsServers);
@@ -145,6 +151,7 @@ class ServerDetailsData {
     int? routingProfileId,
     List<String>? dnsServers,
     ValueData<Certificate>? certificate,
+    bool? enableIpv6,
     String? tlsPrefix,
   }) => ServerDetailsData(
     serverName: serverName ?? this.serverName,
@@ -157,5 +164,6 @@ class ServerDetailsData {
     tlsPrefix: tlsPrefix ?? this.tlsPrefix,
     dnsServers: dnsServers ?? this.dnsServers,
     certificate: certificate == null ? this.certificate : certificate.value,
+    enableIpv6: enableIpv6 ?? this.enableIpv6,
   );
 }

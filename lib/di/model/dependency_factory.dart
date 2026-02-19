@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:trusttunnel/common/theme/light_theme.dart';
-import 'package:trusttunnel/common/utils/certificate_decoder.dart';
+import 'package:trusttunnel/common/utils/certificate_encoders.dart';
 import 'package:trusttunnel/data/database/app_database.dart' as db;
 import 'package:trusttunnel/data/datasources/certificate_datasource.dart';
 import 'package:trusttunnel/data/datasources/local_sources/certificate_datasource_impl.dart';

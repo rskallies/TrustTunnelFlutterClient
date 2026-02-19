@@ -237,6 +237,9 @@ class _ServerDetailsFullScreenViewState extends State<ServerDetailsFullScreenVie
       dnsServers: data.dnsServers,
       routingProfile: profileController.routingList.firstWhere((p) => p.id == data.routingProfileId),
       selected: selectedServer.selected,
+      ipv6: data.enableIpv6,
+      tlsPrefix: data.tlsPrefix,
+      certificate: data.certificate,
     );
 
     controller.start(

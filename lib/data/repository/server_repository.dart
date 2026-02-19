@@ -55,6 +55,9 @@ class ServerRepositoryImpl implements ServerRepository {
       vpnProtocol: server.vpnProtocol,
       dnsServers: server.dnsServers,
       routingProfile: profile,
+      ipv6: server.ipv6,
+      tlsPrefix: server.tlsPrefix,
+      certificate: server.certificate,
     );
   }
 
@@ -77,6 +80,9 @@ class ServerRepositoryImpl implements ServerRepository {
             dnsServers: e.dnsServers,
             routingProfile: profilesMap[e.routingProfileId]!,
             selected: e.selected,
+            ipv6: e.ipv6,
+            certificate: e.certificate,
+            tlsPrefix: e.tlsPrefix,
           ),
         )
         .toList();
@@ -108,6 +114,9 @@ class ServerRepositoryImpl implements ServerRepository {
       dnsServers: server.dnsServers,
       routingProfile: profile,
       selected: server.selected,
+      certificate: server.certificate,
+      ipv6: server.ipv6,
+      tlsPrefix: server.tlsPrefix,
     );
   }
 

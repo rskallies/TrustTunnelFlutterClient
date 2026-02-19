@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
+import 'package:trusttunnel/common/utils/certificate_encoders.dart';
 import 'package:trusttunnel/data/database/app_database.dart' as db;
 import 'package:trusttunnel/data/datasources/server_datasource.dart';
+import 'package:trusttunnel/data/model/certificate.dart';
 import 'package:trusttunnel/data/model/raw/add_server_request.dart';
 import 'package:trusttunnel/data/model/raw/raw_server.dart';
 import 'package:trusttunnel/data/model/vpn_protocol.dart';
@@ -49,6 +51,12 @@ class ServerDataSourceImpl implements ServerDataSource {
       ),
     );
 
+    if (request.certificate != null) {
+      await database.certificateTable.insertOnConflictUpdate(
+        CertificateEncoder(serverId: id).convert(request.certificate!),
+      );
+    }
+
     return RawServer(
       id: id,
       name: request.name,
@@ -59,6 +67,9 @@ class ServerDataSourceImpl implements ServerDataSource {
       vpnProtocol: request.vpnProtocol,
       routingProfileId: request.routingProfileId,
       dnsServers: request.dnsServers,
+      ipv6: request.ipv6,
+      certificate: request.certificate,
+      tlsPrefix: request.tlsPrefix,
     );
   }
 
@@ -71,6 +82,10 @@ class ServerDataSourceImpl implements ServerDataSource {
     final serversRows = await database.select(database.servers).get();
     if (serversRows.isEmpty) return [];
 
+    final certs = await database.select(database.certificateTable).get();
+
+    final certsMap = {for (final c in certs) c.serverId: c};
+
     final serverIds = serversRows.map((s) => s.id).toList();
 
     final dnsRows = await _loadDnsAddresses({...serverIds});
@@ -80,22 +95,28 @@ class ServerDataSourceImpl implements ServerDataSource {
       (dnsByServer[d.serverId] ??= <String>[]).add(d.data);
     }
 
-    return serversRows
-        .map(
-          (e) => RawServer(
-            id: e.id,
-            name: e.name,
-            ipAddress: e.ipAddress,
-            domain: e.domain,
-            username: e.login,
-            password: e.password,
-            vpnProtocol: VpnProtocol.values.firstWhere((p) => p.value == e.vpnProtocolId),
-            dnsServers: dnsByServer[e.id] ?? const <String>[],
-            routingProfileId: e.routingProfileId,
-            selected: e.selected,
-          ),
-        )
-        .toList();
+    return serversRows.map(
+      (e) {
+        final rawCert = certsMap[e.id];
+        final cert = rawCert == null ? null : _parseCert(rawCert);
+
+        return RawServer(
+          id: e.id,
+          name: e.name,
+          ipAddress: e.ipAddress,
+          domain: e.domain,
+          username: e.login,
+          password: e.password,
+          vpnProtocol: VpnProtocol.values.firstWhere((p) => p.value == e.vpnProtocolId),
+          dnsServers: dnsByServer[e.id] ?? const <String>[],
+          routingProfileId: e.routingProfileId,
+          selected: e.selected,
+          certificate: cert,
+          tlsPrefix: e.tlsPrefix,
+          ipv6: e.ipv6Enabled,
+        );
+      },
+    ).toList();
   }
 
   /// {@macro server_data_source_set_selected_server_id}
@@ -139,8 +160,20 @@ class ServerDataSourceImpl implements ServerDataSource {
         password: Value(request.password),
         vpnProtocolId: Value(request.vpnProtocol.value),
         routingProfileId: Value(request.routingProfileId),
+        ipv6Enabled: Value(request.ipv6),
+        tlsPrefix: Value(request.tlsPrefix),
       ),
     );
+
+    final cert = request.certificate;
+
+    if (cert != null) {
+      await database.certificateTable.insertOnConflictUpdate(
+        CertificateEncoder(serverId: id).convert(cert),
+      );
+    } else {
+      await database.certificateTable.deleteWhere((c) => c.serverId.equals(id));
+    }
   }
 
   /// {@macro server_data_source_get_server_by_id}
@@ -154,6 +187,10 @@ class ServerDataSourceImpl implements ServerDataSource {
     }
     final dnsServers = await _loadDnsAddresses({id});
 
+    final cert = await (database.select(
+      database.certificateTable,
+    )..where((e) => e.serverId.equals(id))).getSingleOrNull();
+
     return RawServer(
       id: server.id,
       name: server.name,
@@ -165,6 +202,9 @@ class ServerDataSourceImpl implements ServerDataSource {
       dnsServers: dnsServers.map((e) => e.data).toList(),
       routingProfileId: server.routingProfileId,
       selected: server.selected,
+      ipv6: server.ipv6Enabled,
+      tlsPrefix: server.tlsPrefix,
+      certificate: cert == null ? null : _parseCert(cert),
     );
   }
 
@@ -184,4 +224,6 @@ class ServerDataSourceImpl implements ServerDataSource {
 
     return select.get();
   }
+
+  Certificate _parseCert(db.CertificateTableData input) => const CertificateDecoder().convert(input);
 }

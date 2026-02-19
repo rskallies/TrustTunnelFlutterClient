@@ -123,6 +123,24 @@ class _CustomTextFieldState extends State<CustomTextField> {
           )
         : null;
 
+    Widget? suffixIcon;
+    if (widget.suffixIcon != null || widget.error != null) {
+      suffixIcon = Padding(
+        padding: const EdgeInsets.all(4),
+        child:
+            widget.suffixIcon ??
+            (widget.error != null
+                ? Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CustomIcon.medium(
+                      icon: AssetIcons.error,
+                      color: context.colors.error,
+                    ),
+                  )
+                : const SizedBox.shrink()),
+      );
+    }
+
     return FocusScope(
       node: _focusNode,
       skipTraversal: !widget.enabled,
@@ -154,20 +172,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             errorText: widget.error,
             counter: widget.counter,
             errorMaxLines: 3,
-            suffixIcon: Padding(
-              padding: const EdgeInsets.all(4),
-              child:
-                  widget.suffixIcon ??
-                  (widget.error != null
-                      ? Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: CustomIcon.medium(
-                            icon: AssetIcons.error,
-                            color: context.colors.error,
-                          ),
-                        )
-                      : const SizedBox.shrink()),
-            ),
+            suffixIcon: suffixIcon,
           ),
         ),
       ),

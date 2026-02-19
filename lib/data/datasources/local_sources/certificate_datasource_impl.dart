@@ -1,12 +1,13 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:trusttunnel/common/utils/certificate_decoder.dart';
+import 'package:trusttunnel/common/utils/certificate_encoders.dart';
 import 'package:trusttunnel/data/datasources/certificate_datasource.dart';
 import 'package:trusttunnel/data/model/certificate.dart';
 
 class CertificateDataSourceImpl implements CertificateDataSource {
   static const _certificateFileExtensions = ['pem', 'cer'];
+
 
   final FilePicker _filePicker;
 
@@ -24,12 +25,11 @@ class CertificateDataSourceImpl implements CertificateDataSource {
       type: FileType.custom,
       allowedExtensions: _certificateFileExtensions,
     );
+    final file = result?.files.firstOrNull;
 
-    if (result == null) {
+    if (file == null) {
       return null;
     }
-
-    final file = result.files.first;
 
     final data = await File(file.path!).readAsBytes();
 
