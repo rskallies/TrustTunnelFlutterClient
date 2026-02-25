@@ -50,7 +50,7 @@ class _RoutingEditNameDialogState extends State<RoutingEditNameDialog> {
     );
 
     return CustomAlertDialog(
-      title: context.ln.editProfile,
+      title: context.ln.editProfileName,
       scrollable: true,
       content: Padding(
         padding: const EdgeInsets.only(top: 24),
