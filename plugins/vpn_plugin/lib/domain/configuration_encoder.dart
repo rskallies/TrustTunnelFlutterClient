@@ -87,6 +87,8 @@ final class ConfigurationEncoder extends Converter<Configuration, String> {
     final String socksUsername = _parseToConfigString(configuration.socks.username);
     final String socksPassword = _parseToConfigString(configuration.socks.password);
 
+    final String customSni = _parseToConfigString(configuration.endpoint.customSni);
+
     return _parseBaseConfiguration(
       logLevel: logLevel,
       vpnMode: vpnMode,
@@ -111,6 +113,7 @@ final class ConfigurationEncoder extends Converter<Configuration, String> {
       socksAddress: socksAddress,
       socksUsername: socksUsername,
       socksPassword: socksPassword,
+      customSni: customSni,
     );
   }
 
@@ -210,6 +213,7 @@ final class ConfigurationEncoder extends Converter<Configuration, String> {
     required String socksAddress,
     required String socksUsername,
     required String socksPassword,
+    required String customSni,
   }) => '''
 # Logging level [info, debug, trace]
 loglevel = $logLevel
@@ -295,6 +299,8 @@ upstream_protocol = $upstreamProtocol
 upstream_fallback_protocol = $upstreamFallbackProtocol
 # Is anti-DPI measures should be enabled
 anti_dpi = $antiDpi
+
+custom_sni=$customSni
 
 
 # Defines the way to listen to network traffic by the kind of the nested table.

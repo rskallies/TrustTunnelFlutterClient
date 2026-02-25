@@ -116,6 +116,8 @@ final class Endpoint {
   /// {@endtemplate}
   final bool skipVerification;
 
+  final String customSni;
+
   /// {@macro endpoint}
   ///
   /// Defaults are intentionally permissive:
@@ -130,6 +132,7 @@ final class Endpoint {
     this.clientRandom = '',
     this.skipVerification = false,
     this.certificate = '',
+    this.customSni = '',
     this.antiDpi = false,
     this.upStreamFallbackProtocol,
     required this.hostName,

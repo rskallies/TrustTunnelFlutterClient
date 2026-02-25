@@ -47,6 +47,8 @@ class Server {
   /// Whether this server is marked as the currently selected one.
   final bool selected;
 
+  final String? customSni;
+
   /// {@macro server}
   const Server({
     required this.id,
@@ -59,6 +61,7 @@ class Server {
     required this.dnsServers,
     required this.routingProfile,
     this.selected = false,
+    this.customSni,
   });
 
   @override
@@ -73,6 +76,7 @@ class Server {
     Object.hashAll(dnsServers),
     routingProfile,
     selected,
+    customSni,
   );
 
   @override
@@ -86,7 +90,8 @@ class Server {
       'vpnProtocol: $vpnProtocol, '
       'dnsServers: $dnsServers, '
       'routingProfile: $routingProfile, '
-      'selected: $selected'
+      'selected: $selected, '
+      'customSni: $customSni '
       ')';
 
   @override
@@ -103,6 +108,7 @@ class Server {
         other.vpnProtocol == vpnProtocol &&
         listEquals(other.dnsServers, dnsServers) &&
         other.routingProfile == routingProfile &&
+        other.customSni == customSni &&
         other.selected == selected;
   }
 
@@ -120,6 +126,7 @@ class Server {
     List<String>? dnsServers,
     RoutingProfile? routingProfile,
     bool? selected,
+    String? customSni,
   }) => Server(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -131,5 +138,6 @@ class Server {
     dnsServers: dnsServers ?? this.dnsServers,
     routingProfile: routingProfile ?? this.routingProfile,
     selected: selected ?? this.selected,
+    customSni: customSni ?? this.customSni,
   );
 }
