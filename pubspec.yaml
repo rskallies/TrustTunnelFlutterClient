@@ -24,8 +24,8 @@ version_titles:
 build_channel: Release
 
 environment:
-  flutter: 3.38.3
-  sdk: 3.10.1
+  flutter: ">=3.38.3"
+  sdk: ">=3.10.1 <4.0.0"
 
 dependencies:
   flutter:
@@ -45,6 +45,8 @@ dependencies:
   sqlite3_flutter_libs: 0.5.41
   html: 0.15.6
   flutter_native_splash: 2.4.7
+  tray_manager: ^0.5.2
+  window_manager: ^0.5.1
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +60,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/tray/
   fonts:
     - family: IconFont
       fonts:

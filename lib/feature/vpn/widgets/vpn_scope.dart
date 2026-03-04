@@ -7,6 +7,7 @@ import 'package:trusttunnel/data/model/server.dart';
 import 'package:trusttunnel/data/model/vpn_log.dart';
 import 'package:trusttunnel/data/model/vpn_state.dart';
 import 'package:trusttunnel/data/repository/vpn_repository.dart';
+import 'package:trusttunnel/feature/app/tray_service.dart';
 import 'package:trusttunnel/feature/vpn/models/log_controller.dart';
 import 'package:trusttunnel/feature/vpn/models/vpn_aspect.dart';
 import 'package:trusttunnel/feature/vpn/models/vpn_controller.dart';
@@ -261,6 +262,7 @@ class _VpnScopeState extends State<VpnScope> {
 
   void _onVpnStateChanged(VpnState state) {
     _stateNotifier.value = state;
+    TrayService.instance.updateState(state);
   }
 
   void _onLogCollected(VpnLog log) {
