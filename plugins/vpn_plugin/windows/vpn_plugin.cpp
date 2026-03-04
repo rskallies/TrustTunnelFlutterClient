@@ -4,11 +4,15 @@
 #include <chrono>
 #include <thread>
 
+// vpn_easy C API — provided by vpn_easy.dll built from TrustTunnelClient.
+#include "vpn_easy.h"
+
 using flutter::EncodableValue;
 
 namespace vpn_plugin {
 
-// ---------------- MockStorage ----------------
+// ── MockStorage ───────────────────────────────────────────────────────────────
+
 MockStorage::MockStorage() { SetupMockData(); }
 
 void MockStorage::SetupMockData() {
@@ -27,14 +31,15 @@ void MockStorage::SetupMockData() {
   };
 
   selected_server_id_ = 1;
-  excluded_routes_ = "192.168.0.0/16,10.0.0.0/8";
+  excluded_routes_    = "192.168.0.0/16,10.0.0.0/8";
 
   requests_ = {
       VpnRequest{"2024-08-22T12:00:00Z", "HTTPS", RoutingMode::kVpn, "192.168.1.10",
                  "8.8.8.8", "54321", "443", "google.com"}};
 }
 
-// ---------------- StreamHandler ----------------
+// ── VpnEventStreamHandler ─────────────────────────────────────────────────────
+
 VpnEventStreamHandler::VpnEventStreamHandler(MockStorage* storage,
                                              std::shared_ptr<flutter::TaskRunner> ui_runner)
     : storage_(storage), ui_runner_(std::move(ui_runner)) {}
@@ -64,28 +69,67 @@ VpnEventStreamHandler::OnCancelInternal(const EncodableValue* /*arguments*/) {
   return nullptr;
 }
 
-// ---------------- Managers ----------------
+// ── IVpnManagerImpl — real vpn_easy bridge ───────────────────────────────────
+
 IVpnManagerImpl::IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler,
                                  std::shared_ptr<flutter::TaskRunner> ui_runner)
     : storage_(storage), handler_(handler), ui_runner_(std::move(ui_runner)) {}
 
-void IVpnManagerImpl::Start() {
-  storage_->CurrentVpnState() = VpnManagerState::kConnecting;
-  handler_->EmitState(storage_->CurrentVpnState());
+IVpnManagerImpl::~IVpnManagerImpl() {
+  // Ensure the engine is stopped if the plugin is torn down.
+  vpn_easy_stop();
+}
 
-  std::thread([this]() {
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    storage_->CurrentVpnState() = VpnManagerState::kConnected;
-    ui_runner_->PostTask([this]() { handler_->EmitState(storage_->CurrentVpnState()); });
-  }).detach();
+// Static callback — invoked from vpn_easy's internal thread.
+// Maps VPN_SS_* integer values to VpnManagerState and forwards to Flutter.
+void IVpnManagerImpl::OnVpnStateChanged(void* arg, int new_state) {
+  auto* self = static_cast<IVpnManagerImpl*>(arg);
+
+  VpnManagerState mapped;
+  switch (new_state) {
+    case 0: mapped = VpnManagerState::kDisconnected;       break;
+    case 1: mapped = VpnManagerState::kConnecting;         break;
+    case 2: mapped = VpnManagerState::kConnected;          break;
+    case 3: mapped = VpnManagerState::kWaitingForRecovery; break;
+    case 4: mapped = VpnManagerState::kRecovering;         break;
+    case 5: mapped = VpnManagerState::kWaitingForNetwork;  break;
+    default: mapped = VpnManagerState::kDisconnected;      break;
+  }
+
+  self->storage_->CurrentVpnState() = mapped;
+
+  // EmitState must be called on the UI thread.
+  self->ui_runner_->PostTask([self, mapped]() {
+    self->handler_->EmitState(mapped);
+  });
+}
+
+void IVpnManagerImpl::Start(const std::string& config) {
+  // Emit connecting immediately so the UI responds without waiting for the
+  // engine's first state callback.
+  storage_->CurrentVpnState() = VpnManagerState::kConnecting;
+  ui_runner_->PostTask([this]() {
+    handler_->EmitState(VpnManagerState::kConnecting);
+  });
+
+  // vpn_easy_start is async — it returns immediately and fires OnVpnStateChanged
+  // as the engine transitions through its states.
+  vpn_easy_start(config.c_str(), &IVpnManagerImpl::OnVpnStateChanged, this);
 }
 
 void IVpnManagerImpl::Stop() {
+  vpn_easy_stop();
   storage_->CurrentVpnState() = VpnManagerState::kDisconnected;
-  handler_->EmitState(storage_->CurrentVpnState());
+  ui_runner_->PostTask([this]() {
+    handler_->EmitState(VpnManagerState::kDisconnected);
+  });
 }
 
-VpnManagerState IVpnManagerImpl::GetCurrentState() { return storage_->CurrentVpnState(); }
+VpnManagerState IVpnManagerImpl::GetCurrentState() {
+  return storage_->CurrentVpnState();
+}
+
+// ── ServersManagerImpl ────────────────────────────────────────────────────────
 
 AddNewServerResult ServersManagerImpl::AddNewServer(const std::string& /*name*/,
                                                     const std::string& ip,
@@ -96,9 +140,9 @@ AddNewServerResult ServersManagerImpl::AddNewServer(const std::string& /*name*/,
                                                     int64_t routing_profile_id,
                                                     const std::string& dns_csv) {
   if (ip.empty() || !IsValidIp(ip)) return AddNewServerResult::kIpAddressIncorrect;
-  if (domain.empty()) return AddNewServerResult::kDomainIncorrect;
-  if (user.empty()) return AddNewServerResult::kUsernameIncorrect;
-  if (pass.empty()) return AddNewServerResult::kPasswordIncorrect;
+  if (domain.empty())               return AddNewServerResult::kDomainIncorrect;
+  if (user.empty())                 return AddNewServerResult::kUsernameIncorrect;
+  if (pass.empty())                 return AddNewServerResult::kPasswordIncorrect;
 
   auto dns = SplitAndTrim(dns_csv, ',');
   if (dns.empty()) return AddNewServerResult::kDnsServersIncorrect;
@@ -120,9 +164,9 @@ AddNewServerResult ServersManagerImpl::SetNewServer(int64_t id, const std::strin
                                                     int64_t routing_profile_id,
                                                     const std::string& dns_csv) {
   if (ip.empty() || !IsValidIp(ip)) return AddNewServerResult::kIpAddressIncorrect;
-  if (domain.empty()) return AddNewServerResult::kDomainIncorrect;
-  if (user.empty()) return AddNewServerResult::kUsernameIncorrect;
-  if (pass.empty()) return AddNewServerResult::kPasswordIncorrect;
+  if (domain.empty())               return AddNewServerResult::kDomainIncorrect;
+  if (user.empty())                 return AddNewServerResult::kUsernameIncorrect;
+  if (pass.empty())                 return AddNewServerResult::kPasswordIncorrect;
 
   auto dns = SplitAndTrim(dns_csv, ',');
   if (dns.empty()) return AddNewServerResult::kDnsServersIncorrect;
@@ -139,8 +183,9 @@ AddNewServerResult ServersManagerImpl::SetNewServer(int64_t id, const std::strin
 
 void ServersManagerImpl::RemoveServer(int64_t id) {
   auto& all = storage_->AllServers();
-  all.erase(std::remove_if(all.begin(), all.end(), [&](const Server& s) { return s.id == id; }),
-            all.end());
+  all.erase(
+      std::remove_if(all.begin(), all.end(), [&](const Server& s) { return s.id == id; }),
+      all.end());
   if (storage_->CurrentSelectedServerId().has_value() &&
       storage_->CurrentSelectedServerId().value() == id) {
     storage_->CurrentSelectedServerId().reset();
@@ -182,22 +227,29 @@ void ServersManagerImpl::Trim(std::string& str) {
   str.erase(std::find_if(str.rbegin(), str.rend(), not_space).base(), str.end());
 }
 
+// ── RoutingProfilesManagerImpl ────────────────────────────────────────────────
+
 void RoutingProfilesManagerImpl::AddNewProfile() {
   int64_t new_id = 1;
   for (const auto& p : storage_->AllRoutingProfiles()) new_id = std::max(new_id, p.id + 1);
-  storage_->AllRoutingProfiles()
-      .push_back(RoutingProfile{new_id, "Profile " + std::to_string(new_id), RoutingMode::kVpn, {}, {}});
+  storage_->AllRoutingProfiles().push_back(
+      RoutingProfile{new_id, "Profile " + std::to_string(new_id), RoutingMode::kVpn, {}, {}});
 }
 
 void RoutingProfilesManagerImpl::SetDefaultRoutingMode(int64_t id, RoutingMode mode) {
-  for (auto& p : storage_->AllRoutingProfiles()) { if (p.id == id) { p.default_mode = mode; break; } }
+  for (auto& p : storage_->AllRoutingProfiles()) {
+    if (p.id == id) { p.default_mode = mode; break; }
+  }
 }
 
 void RoutingProfilesManagerImpl::SetProfileName(int64_t id, const std::string& name) {
-  for (auto& p : storage_->AllRoutingProfiles()) { if (p.id == id) { p.name = name; break; } }
+  for (auto& p : storage_->AllRoutingProfiles()) {
+    if (p.id == id) { p.name = name; break; }
+  }
 }
 
-void RoutingProfilesManagerImpl::SetRules(int64_t id, RoutingMode mode, const std::string& rules) {
+void RoutingProfilesManagerImpl::SetRules(int64_t id, RoutingMode mode,
+                                          const std::string& rules) {
   auto arr = ServersManagerImpl::SplitAndTrim(rules, '\n');
   for (auto& p : storage_->AllRoutingProfiles()) {
     if (p.id == id) {
@@ -213,10 +265,11 @@ void RoutingProfilesManagerImpl::RemoveAllRules(int64_t id) {
   }
 }
 
-// ---------------- VpnPlugin ----------------
+// ── VpnPlugin ─────────────────────────────────────────────────────────────────
+
 void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar) {
-  auto messenger = registrar->messenger();
-  auto ui_runner = registrar->task_runner();
+  auto messenger  = registrar->messenger();
+  auto ui_runner  = registrar->task_runner();
 
   auto storage = std::make_shared<MockStorage>();
   auto handler = std::make_unique<VpnEventStreamHandler>(storage.get(), ui_runner);
@@ -225,7 +278,7 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
       messenger, "vpn_plugin_event_channel", &flutter::StandardMethodCodec::GetInstance());
   event_channel->SetStreamHandler(std::unique_ptr<VpnEventStreamHandler>(handler.get()));
 
-  auto vpn_manager = std::make_unique<IVpnManagerImpl>(storage.get(), handler.get(), ui_runner);
+  auto vpn_manager     = std::make_unique<IVpnManagerImpl>(storage.get(), handler.get(), ui_runner);
   auto storage_manager = std::make_unique<StorageManagerImpl>(storage.get());
   auto servers_manager = std::make_unique<ServersManagerImpl>(storage.get());
   auto routing_manager = std::make_unique<RoutingProfilesManagerImpl>(storage.get());
@@ -242,11 +295,11 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
 
 VpnPlugin::VpnPlugin(
     std::unique_ptr<flutter::EventChannel<EncodableValue>> event_channel,
-    std::shared_ptr<MockStorage> storage,
-    std::unique_ptr<VpnEventStreamHandler> handler,
-    std::unique_ptr<IVpnManagerImpl> vpn_manager,
-    std::unique_ptr<StorageManagerImpl> storage_manager,
-    std::unique_ptr<ServersManagerImpl> servers_manager,
+    std::shared_ptr<MockStorage>                storage,
+    std::unique_ptr<VpnEventStreamHandler>      handler,
+    std::unique_ptr<IVpnManagerImpl>            vpn_manager,
+    std::unique_ptr<StorageManagerImpl>         storage_manager,
+    std::unique_ptr<ServersManagerImpl>         servers_manager,
     std::unique_ptr<RoutingProfilesManagerImpl> routing_manager)
     : event_channel_(std::move(event_channel)),
       storage_(std::move(storage)),

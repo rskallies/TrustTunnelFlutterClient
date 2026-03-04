@@ -6,15 +6,28 @@
 #include <flutter/standard_method_codec.h>
 
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace vpn_plugin {
 
-enum class VpnManagerState : int64_t { kDisconnected = 0, kConnecting = 1, kConnected = 2 };
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum class VpnManagerState : int64_t {
+  kDisconnected       = 0,
+  kConnecting         = 1,
+  kConnected          = 2,
+  kWaitingForRecovery = 3,
+  kRecovering         = 4,
+  kWaitingForNetwork  = 5,
+};
+
 enum class VpnProtocol : int64_t { kQuic = 0, kHttp2 = 1 };
-enum class RoutingMode : int64_t { kVpn = 0, kBypass = 1 };
+enum class RoutingMode  : int64_t { kVpn  = 0, kBypass = 1 };
+
+// ── Data structures ───────────────────────────────────────────────────────────
 
 struct Server {
   int64_t id;
@@ -47,40 +60,46 @@ struct VpnRequest {
 };
 
 enum class AddNewServerResult : int64_t {
-  kOk = 0,
+  kOk                 = 0,
   kIpAddressIncorrect = 1,
-  kDomainIncorrect = 2,
-  kUsernameIncorrect = 3,
-  kPasswordIncorrect = 4,
-  kDnsServersIncorrect = 5
+  kDomainIncorrect    = 2,
+  kUsernameIncorrect  = 3,
+  kPasswordIncorrect  = 4,
+  kDnsServersIncorrect = 5,
 };
+
+// ── Pigeon-generated setup functions ─────────────────────────────────────────
 
 void IVpnManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
 void IStorageManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
 void ServersManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
 void RoutingProfilesManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
 
+// ── Storage ───────────────────────────────────────────────────────────────────
+
 class MockStorage {
  public:
   MockStorage();
 
-  std::vector<Server>& AllServers() { return servers_; }
-  std::vector<RoutingProfile>& AllRoutingProfiles() { return routing_profiles_; }
-  std::optional<int64_t>& CurrentSelectedServerId() { return selected_server_id_; }
-  std::string& CurrentExcludedRoutes() { return excluded_routes_; }
-  VpnManagerState& CurrentVpnState() { return vpn_state_; }
-  std::vector<VpnRequest>& AllRequests() { return requests_; }
+  std::vector<Server>&           AllServers()              { return servers_; }
+  std::vector<RoutingProfile>&   AllRoutingProfiles()      { return routing_profiles_; }
+  std::optional<int64_t>&        CurrentSelectedServerId() { return selected_server_id_; }
+  std::string&                   CurrentExcludedRoutes()   { return excluded_routes_; }
+  VpnManagerState&               CurrentVpnState()         { return vpn_state_; }
+  std::vector<VpnRequest>&       AllRequests()             { return requests_; }
 
  private:
   void SetupMockData();
 
-  std::vector<Server> servers_;
-  std::vector<RoutingProfile> routing_profiles_;
-  std::optional<int64_t> selected_server_id_;
-  std::string excluded_routes_;
-  VpnManagerState vpn_state_ = VpnManagerState::kDisconnected;
-  std::vector<VpnRequest> requests_;
+  std::vector<Server>          servers_;
+  std::vector<RoutingProfile>  routing_profiles_;
+  std::optional<int64_t>       selected_server_id_;
+  std::string                  excluded_routes_;
+  VpnManagerState              vpn_state_ = VpnManagerState::kDisconnected;
+  std::vector<VpnRequest>      requests_;
 };
+
+// ── Event stream handler ──────────────────────────────────────────────────────
 
 class VpnEventStreamHandler
     : public flutter::StreamHandler<flutter::EncodableValue> {
@@ -91,46 +110,55 @@ class VpnEventStreamHandler
   void EmitState(VpnManagerState state);
 
  protected:
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(
-      const flutter::EncodableValue* arguments,
-      std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override;
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>>
+  OnListenInternal(const flutter::EncodableValue* arguments,
+                   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override;
 
-  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(
-      const flutter::EncodableValue* arguments) override;
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>>
+  OnCancelInternal(const flutter::EncodableValue* arguments) override;
 
  private:
-  MockStorage* storage_;
-  std::shared_ptr<flutter::TaskRunner> ui_runner_;
-  std::mutex mutex_;
-  std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
+  MockStorage*                                                     storage_;
+  std::shared_ptr<flutter::TaskRunner>                             ui_runner_;
+  std::mutex                                                       mutex_;
+  std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>     sink_;
 };
+
+// ── VPN manager — bridges to vpn_easy.dll ────────────────────────────────────
 
 class IVpnManagerImpl {
  public:
   IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler,
                   std::shared_ptr<flutter::TaskRunner> ui_runner);
-  void Start();
+  ~IVpnManagerImpl();
+
+  void Start(const std::string& config);
   void Stop();
   VpnManagerState GetCurrentState();
 
  private:
-  MockStorage* storage_;
-  VpnEventStreamHandler* handler_;
-  std::shared_ptr<flutter::TaskRunner> ui_runner_;
+  // Called from the vpn_easy state-change callback (arbitrary thread).
+  static void OnVpnStateChanged(void* arg, int new_state);
+
+  MockStorage*                          storage_;
+  VpnEventStreamHandler*                handler_;
+  std::shared_ptr<flutter::TaskRunner>  ui_runner_;
 };
+
+// ── Storage / server / routing managers (unchanged from mock) ─────────────────
 
 class StorageManagerImpl {
  public:
   explicit StorageManagerImpl(MockStorage* storage) : storage_(storage) {}
-  void SetExcludedRoutes(const std::string& routes) { storage_->CurrentExcludedRoutes() = routes; }
-  void SetRoutingProfiles(const std::vector<RoutingProfile>& profiles) { storage_->AllRoutingProfiles() = profiles; }
-  void SetSelectedServerId(int64_t id) { storage_->CurrentSelectedServerId() = id; }
-  void SetServers(const std::vector<Server>& servers) { storage_->AllServers() = servers; }
-  std::vector<VpnRequest> GetAllRequests() { return storage_->AllRequests(); }
-  std::string GetExcludedRoutes() { return storage_->CurrentExcludedRoutes(); }
-  std::vector<RoutingProfile> GetRoutingProfiles() { return storage_->AllRoutingProfiles(); }
-  std::optional<int64_t> GetSelectedServerId() { return storage_->CurrentSelectedServerId(); }
-  std::vector<Server> GetAllServers() { return storage_->AllServers(); }
+  void SetExcludedRoutes(const std::string& routes)               { storage_->CurrentExcludedRoutes() = routes; }
+  void SetRoutingProfiles(const std::vector<RoutingProfile>& p)   { storage_->AllRoutingProfiles() = p; }
+  void SetSelectedServerId(int64_t id)                            { storage_->CurrentSelectedServerId() = id; }
+  void SetServers(const std::vector<Server>& servers)             { storage_->AllServers() = servers; }
+  std::vector<VpnRequest>      GetAllRequests()       { return storage_->AllRequests(); }
+  std::string                  GetExcludedRoutes()    { return storage_->CurrentExcludedRoutes(); }
+  std::vector<RoutingProfile>  GetRoutingProfiles()   { return storage_->AllRoutingProfiles(); }
+  std::optional<int64_t>       GetSelectedServerId()  { return storage_->CurrentSelectedServerId(); }
+  std::vector<Server>          GetAllServers()        { return storage_->AllServers(); }
 
  private:
   MockStorage* storage_;
@@ -151,9 +179,9 @@ class ServersManagerImpl {
   void SetSelectedServerId(int64_t id) { storage_->CurrentSelectedServerId() = id; }
   void RemoveServer(int64_t id);
 
-  static bool IsValidIp(const std::string& ip);
-  static std::vector<std::string> SplitAndTrim(const std::string& s, char delim);
-  static void Trim(std::string& s);
+  static bool                      IsValidIp(const std::string& ip);
+  static std::vector<std::string>  SplitAndTrim(const std::string& s, char delim);
+  static void                      Trim(std::string& s);
 
  private:
   MockStorage* storage_;
@@ -162,7 +190,7 @@ class ServersManagerImpl {
 class RoutingProfilesManagerImpl {
  public:
   explicit RoutingProfilesManagerImpl(MockStorage* storage) : storage_(storage) {}
-  void AddNewProfile();
+  void                        AddNewProfile();
   std::vector<RoutingProfile> GetAllProfiles() { return storage_->AllRoutingProfiles(); }
   void SetDefaultRoutingMode(int64_t id, RoutingMode mode);
   void SetProfileName(int64_t id, const std::string& name);
@@ -173,32 +201,34 @@ class RoutingProfilesManagerImpl {
   MockStorage* storage_;
 };
 
+// ── Plugin ────────────────────────────────────────────────────────────────────
+
 class VpnPlugin : public flutter::Plugin {
  public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar);
 
   explicit VpnPlugin(
       std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel,
-      std::shared_ptr<MockStorage> storage,
-      std::unique_ptr<VpnEventStreamHandler> handler,
-      std::unique_ptr<IVpnManagerImpl> vpn_manager,
-      std::unique_ptr<StorageManagerImpl> storage_manager,
-      std::unique_ptr<ServersManagerImpl> servers_manager,
-      std::unique_ptr<RoutingProfilesManagerImpl> routing_manager);
+      std::shared_ptr<MockStorage>                   storage,
+      std::unique_ptr<VpnEventStreamHandler>         handler,
+      std::unique_ptr<IVpnManagerImpl>               vpn_manager,
+      std::unique_ptr<StorageManagerImpl>            storage_manager,
+      std::unique_ptr<ServersManagerImpl>            servers_manager,
+      std::unique_ptr<RoutingProfilesManagerImpl>    routing_manager);
 
   ~VpnPlugin() override;
 
-  VpnPlugin(const VpnPlugin&) = delete;
-  VpnPlugin& operator=(const VpnPlugin&) = delete;
+  VpnPlugin(const VpnPlugin&)             = delete;
+  VpnPlugin& operator=(const VpnPlugin&)  = delete;
 
  private:
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel_;
-  std::shared_ptr<MockStorage> storage_;
-  std::unique_ptr<VpnEventStreamHandler> handler_;
-  std::unique_ptr<IVpnManagerImpl> vpn_manager_;
-  std::unique_ptr<StorageManagerImpl> storage_manager_;
-  std::unique_ptr<ServersManagerImpl> servers_manager_;
-  std::unique_ptr<RoutingProfilesManagerImpl> routing_manager_;
+  std::shared_ptr<MockStorage>                    storage_;
+  std::unique_ptr<VpnEventStreamHandler>          handler_;
+  std::unique_ptr<IVpnManagerImpl>                vpn_manager_;
+  std::unique_ptr<StorageManagerImpl>             storage_manager_;
+  std::unique_ptr<ServersManagerImpl>             servers_manager_;
+  std::unique_ptr<RoutingProfilesManagerImpl>     routing_manager_;
 };
 
 }  // namespace vpn_plugin
