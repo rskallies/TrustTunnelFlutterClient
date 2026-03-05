@@ -1,0 +1,56 @@
+name: Build Windows (ARM64)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-windows
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download vpn_easy binaries
+        env:
+          GH_TOKEN: ${{ secrets.VPNEASY_TOKEN }}
+        run: |
+          $runId = gh run list `
+            --repo rskallies/TrustTunnelClient `
+            --workflow "Build vpn_easy.dll (Windows ARM64)" `
+            --status success `
+            --limit 1 `
+            --json databaseId `
+            --jq ".[0].databaseId"
+          Write-Host "Downloading vpn_easy artifacts from run $runId"
+          gh run download $runId `
+            --repo rskallies/TrustTunnelClient `
+            --name vpn_easy-windows-arm64 `
+            --dir vpn_easy_tmp
+          New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/lib | Out-Null
+          Move-Item vpn_easy_tmp/vpn_easy.dll plugins/vpn_plugin/windows/vpn_easy/bin/
+          Move-Item vpn_easy_tmp/vpn_easy.lib plugins/vpn_plugin/windows/vpn_easy/lib/
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.3'
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trusttunnel-windows-arm64
+          path: build/windows/x64/runner/Release/
+          retention-days: 30
