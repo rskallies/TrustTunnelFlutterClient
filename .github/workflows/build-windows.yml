@@ -21,7 +21,7 @@ jobs:
         run: |
           $runId = gh run list `
             --repo rskallies/TrustTunnelClient `
-            --workflow "Build vpn_easy.dll (Windows ARM64)" `
+            --workflow "Build vpn_easy.dll (Windows x64)" `
             --status success `
             --limit 1 `
             --json databaseId `
@@ -29,7 +29,7 @@ jobs:
           Write-Host "Downloading vpn_easy artifacts from run $runId"
           gh run download $runId `
             --repo rskallies/TrustTunnelClient `
-            --name vpn_easy-windows-arm64 `
+            --name vpn_easy-windows-x64 `
             --dir vpn_easy_tmp
           New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/bin | Out-Null
           New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/lib | Out-Null
@@ -51,6 +51,6 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: trusttunnel-windows-arm64
+          name: trusttunnel-windows-x64
           path: build/windows/x64/runner/Release/
           retention-days: 30
