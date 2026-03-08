@@ -45,6 +45,12 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Generate localizations
+        run: dart run intl_utils:generate
+
+      - name: Run build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Build Windows release
         run: flutter build windows --release
 
