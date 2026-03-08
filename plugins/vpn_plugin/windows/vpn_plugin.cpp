@@ -113,7 +113,9 @@ std::optional<FlutterError> IVpnManagerImpl::Start(const std::string& /*server_n
     wchar_t path[MAX_PATH];
     ::GetTempPathW(MAX_PATH, path);
     std::wstring log_path = std::wstring(path) + L"vpn_easy_config.toml";
-    if (FILE* f = ::_wfopen(log_path.c_str(), L"w")) {
+    FILE* f = nullptr;
+    ::_wfopen_s(&f, log_path.c_str(), L"w");
+    if (f) {
       ::fwrite(config.c_str(), 1, config.size(), f);
       ::fclose(f);
     }
