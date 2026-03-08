@@ -187,12 +187,32 @@ class _VpnScopeState extends State<VpnScope> {
   late final StreamSubscription<VpnLog> _logStreamSub;
   static const _logLimit = 500;
 
+  // Remembers the last connection parameters so the tray toggle can reconnect.
+  Server? _lastServer;
+  RoutingProfile? _lastRoutingProfile;
+  List<String> _lastExcludedRoutes = const [];
+
   @override
   void initState() {
     super.initState();
     _stateNotifier = ValueNotifier(widget.initialState);
     _logsNotifier = ValueNotifier(<VpnLog>[]);
     widget.vpnRepository.listenToLogs().then((stream) => _logStreamSub = stream.listen(_onLogCollected));
+    TrayService.instance.setToggleCallback(_trayToggle);
+  }
+
+  void _trayToggle() {
+    final state = _stateNotifier.value;
+    if (state == VpnState.connected) {
+      _stop();
+    } else if (state == VpnState.disconnected) {
+      final server = _lastServer;
+      final profile = _lastRoutingProfile;
+      if (server != null && profile != null) {
+        _start(server: server, routingProfile: profile, excludedRoutes: _lastExcludedRoutes);
+      }
+    }
+    // Ignore toggle while connecting/recovering/waitingFor* — menu item is disabled anyway.
   }
 
   StreamSubscription<VpnState>? _vpnStreamSub;
@@ -228,6 +248,10 @@ class _VpnScopeState extends State<VpnScope> {
     required RoutingProfile routingProfile,
     required List<String> excludedRoutes,
   }) async {
+    _lastServer = server;
+    _lastRoutingProfile = routingProfile;
+    _lastExcludedRoutes = excludedRoutes;
+
     await _stop();
 
     final newServerStream = await widget.vpnRepository.startListenToStates(

@@ -28,7 +28,7 @@ void main() => runZonedGuarded(
 
     if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       await TrayService.instance.init(
-        onToggle: () {},
+        onToggle: () {}, // replaced by TrayService.setToggleCallback in VpnScope
         onShow: () => windowManager.show(),
         onQuit: () async {
           await TrayService.instance.dispose();

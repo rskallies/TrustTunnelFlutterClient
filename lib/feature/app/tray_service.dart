@@ -25,6 +25,11 @@ class TrayService with TrayListener {
   VoidCallback? _onShow;
   VoidCallback? _onQuit;
 
+  /// Replaces the toggle callback at runtime (e.g. after the widget tree is ready).
+  void setToggleCallback(TrayVpnToggleCallback callback) {
+    _onToggle = callback;
+  }
+
   Future<void> init({
     required TrayVpnToggleCallback onToggle,
     required VoidCallback onShow,
