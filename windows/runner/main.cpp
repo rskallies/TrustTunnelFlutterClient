@@ -2,8 +2,6 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
-#pragma comment(linker, "/MANIFESTUAC:level='requireAdministrator' uiAccess='false'")
-
 #include "flutter_window.h"
 #include "utils.h"
 
