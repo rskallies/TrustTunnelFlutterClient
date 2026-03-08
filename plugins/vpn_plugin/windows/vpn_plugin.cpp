@@ -1,6 +1,3 @@
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
 #include "vpn_plugin.h"
 
 #include <algorithm>
@@ -297,16 +294,18 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
 
   auto storage = std::make_shared<MockStorage>();
   auto handler = std::make_unique<VpnEventStreamHandler>(storage.get());
+  auto* handler_raw = handler.get();
 
   // Store handler pointer in the window so VpnMsgWndProc can reach it.
   ::SetWindowLongPtr(msg_hwnd, GWLP_USERDATA,
-                     reinterpret_cast<LONG_PTR>(handler.get()));
+                     reinterpret_cast<LONG_PTR>(handler_raw));
 
   auto event_channel = std::make_unique<flutter::EventChannel<EncodableValue>>(
       messenger, "vpn_plugin_event_channel", &flutter::StandardMethodCodec::GetInstance());
-  event_channel->SetStreamHandler(std::unique_ptr<VpnEventStreamHandler>(handler.get()));
+  // Transfer ownership of handler to the event channel.
+  event_channel->SetStreamHandler(std::move(handler));
 
-  auto vpn_manager = std::make_unique<IVpnManagerImpl>(storage.get(), handler.get(), msg_hwnd);
+  auto vpn_manager = std::make_unique<IVpnManagerImpl>(storage.get(), handler_raw, msg_hwnd);
   auto storage_manager = std::make_unique<StorageManagerImpl>(storage.get());
   auto servers_manager = std::make_unique<ServersManagerImpl>(storage.get());
   auto routing_manager = std::make_unique<RoutingProfilesManagerImpl>(storage.get());
@@ -317,7 +316,7 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
   IDeepLink::SetUp(messenger, &deep_link_impl);
 
   registrar->AddPlugin(std::make_unique<VpnPlugin>(
-      msg_hwnd, std::move(event_channel), storage, std::move(handler),
+      msg_hwnd, std::move(event_channel), storage,
       std::move(vpn_manager), std::move(storage_manager),
       std::move(servers_manager), std::move(routing_manager)));
 }
@@ -326,7 +325,6 @@ VpnPlugin::VpnPlugin(
     HWND msg_hwnd,
     std::unique_ptr<flutter::EventChannel<EncodableValue>> event_channel,
     std::shared_ptr<MockStorage>                storage,
-    std::unique_ptr<VpnEventStreamHandler>      handler,
     std::unique_ptr<IVpnManagerImpl>            vpn_manager,
     std::unique_ptr<StorageManagerImpl>         storage_manager,
     std::unique_ptr<ServersManagerImpl>         servers_manager,
@@ -334,7 +332,6 @@ VpnPlugin::VpnPlugin(
     : msg_hwnd_(msg_hwnd),
       event_channel_(std::move(event_channel)),
       storage_(std::move(storage)),
-      handler_(std::move(handler)),
       vpn_manager_(std::move(vpn_manager)),
       storage_manager_(std::move(storage_manager)),
       servers_manager_(std::move(servers_manager)),
