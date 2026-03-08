@@ -66,3 +66,19 @@ jobs:
           name: trusttunnel-windows-x64
           path: build/windows/x64/runner/Release/
           retention-days: 30
+
+      - name: Delete previous failed runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ids = gh run list `
+            --repo ${{ github.repository }} `
+            --workflow "Build Windows (x64)" `
+            --status failure `
+            --limit 20 `
+            --json databaseId `
+            --jq ".[].databaseId"
+          foreach ($id in $ids) {
+            gh run delete $id --repo ${{ github.repository }}
+            Write-Host "Deleted failed run $id"
+          }
