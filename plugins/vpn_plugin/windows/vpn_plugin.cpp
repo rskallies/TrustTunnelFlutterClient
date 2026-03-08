@@ -104,26 +104,29 @@ void IVpnManagerImpl::OnVpnStateChanged(void* arg, int new_state) {
   ::PostMessage(self->msg_hwnd_, WM_VPN_STATE, static_cast<WPARAM>(mapped), 0);
 }
 
-void IVpnManagerImpl::Start(const std::string& config) {
-  // Emit connecting immediately so the UI responds without waiting for the
-  // engine's first state callback.
+std::optional<FlutterError> IVpnManagerImpl::Start(const std::string& /*server_name*/,
+                                                    const std::string& config) {
   storage_->CurrentVpnState() = VpnManagerState::kConnecting;
   ::PostMessage(msg_hwnd_, WM_VPN_STATE,
                 static_cast<WPARAM>(VpnManagerState::kConnecting), 0);
-
-  // vpn_easy_start is async — it returns immediately and fires OnVpnStateChanged
-  // as the engine transitions through its states.
   vpn_easy_start(config.c_str(), &IVpnManagerImpl::OnVpnStateChanged, this);
+  return std::nullopt;
 }
 
-void IVpnManagerImpl::Stop() {
+std::optional<FlutterError> IVpnManagerImpl::Stop() {
   vpn_easy_stop();
   storage_->CurrentVpnState() = VpnManagerState::kDisconnected;
   ::PostMessage(msg_hwnd_, WM_VPN_STATE,
                 static_cast<WPARAM>(VpnManagerState::kDisconnected), 0);
+  return std::nullopt;
 }
 
-VpnManagerState IVpnManagerImpl::GetCurrentState() {
+std::optional<FlutterError> IVpnManagerImpl::UpdateConfiguration(
+    const std::string* /*server_name*/, const std::string* /*config*/) {
+  return std::nullopt;
+}
+
+ErrorOr<VpnManagerState> IVpnManagerImpl::GetCurrentState() {
   return storage_->CurrentVpnState();
 }
 
@@ -308,10 +311,10 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
   auto servers_manager = std::make_unique<ServersManagerImpl>(storage.get());
   auto routing_manager = std::make_unique<RoutingProfilesManagerImpl>(storage.get());
 
-  IVpnManagerSetupSetUp(messenger, vpn_manager.get());
-  IStorageManagerSetupSetUp(messenger, storage_manager.get());
-  ServersManagerSetupSetUp(messenger, servers_manager.get());
-  RoutingProfilesManagerSetupSetUp(messenger, routing_manager.get());
+  IVpnManager::SetUp(messenger, vpn_manager.get());
+
+  static IDeepLinkImpl deep_link_impl;
+  IDeepLink::SetUp(messenger, &deep_link_impl);
 
   registrar->AddPlugin(std::make_unique<VpnPlugin>(
       msg_hwnd, std::move(event_channel), storage, std::move(handler),

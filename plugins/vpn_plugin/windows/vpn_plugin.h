@@ -75,12 +75,8 @@ enum class AddNewServerResult : int64_t {
 // WPARAM carries the raw VPN_SS_* integer from vpn_easy's callback.
 static constexpr UINT WM_VPN_STATE = WM_USER + 1;
 
-// ── Pigeon-generated setup functions ─────────────────────────────────────────
-
-void IVpnManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
-void IStorageManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
-void ServersManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
-void RoutingProfilesManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
+// Pigeon-generated bindings.
+#include "runner/platform_api.g.h"
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 
@@ -132,14 +128,18 @@ class VpnEventStreamHandler
 
 // ── VPN manager — bridges to vpn_easy.dll ────────────────────────────────────
 
-class IVpnManagerImpl {
+class IVpnManagerImpl : public IVpnManager {
  public:
   IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler, HWND msg_hwnd);
-  ~IVpnManagerImpl();
+  ~IVpnManagerImpl() override;
 
-  void Start(const std::string& config);
-  void Stop();
-  VpnManagerState GetCurrentState();
+  // IVpnManager overrides.
+  std::optional<FlutterError> Start(const std::string& server_name,
+                                    const std::string& config) override;
+  std::optional<FlutterError> Stop() override;
+  std::optional<FlutterError> UpdateConfiguration(const std::string* server_name,
+                                                  const std::string* config) override;
+  ErrorOr<VpnManagerState> GetCurrentState() override;
 
  private:
   // Called from the vpn_easy state-change callback (arbitrary thread).
@@ -149,6 +149,15 @@ class IVpnManagerImpl {
   MockStorage*           storage_;
   VpnEventStreamHandler* handler_;
   HWND                   msg_hwnd_;
+};
+
+// ── Deep link stub (required by pigeon registration) ─────────────────────────
+
+class IDeepLinkImpl : public IDeepLink {
+ public:
+  ErrorOr<std::string> Decode(const std::string& /*uri*/) override {
+    return std::string{};
+  }
 };
 
 // ── Storage / server / routing managers (unchanged from mock) ─────────────────
