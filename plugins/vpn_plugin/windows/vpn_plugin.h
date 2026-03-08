@@ -1,6 +1,9 @@
 #ifndef FLUTTER_PLUGIN_VPN_PLUGIN_H_
 #define FLUTTER_PLUGIN_VPN_PLUGIN_H_
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #include <flutter/event_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
@@ -68,6 +71,10 @@ enum class AddNewServerResult : int64_t {
   kDnsServersIncorrect = 5,
 };
 
+// WM_USER message used to marshal VPN state changes onto the UI thread.
+// WPARAM carries the raw VPN_SS_* integer from vpn_easy's callback.
+static constexpr UINT WM_VPN_STATE = WM_USER + 1;
+
 // ── Pigeon-generated setup functions ─────────────────────────────────────────
 
 void IVpnManagerSetupSetUp(flutter::BinaryMessenger*, void* /*api*/);
@@ -104,9 +111,9 @@ class MockStorage {
 class VpnEventStreamHandler
     : public flutter::StreamHandler<flutter::EncodableValue> {
  public:
-  explicit VpnEventStreamHandler(MockStorage* storage,
-                                 std::shared_ptr<flutter::TaskRunner> ui_runner);
+  explicit VpnEventStreamHandler(MockStorage* storage);
 
+  // Called on the UI thread only (via WM_VPN_STATE message dispatch).
   void EmitState(VpnManagerState state);
 
  protected:
@@ -119,7 +126,6 @@ class VpnEventStreamHandler
 
  private:
   MockStorage*                                                     storage_;
-  std::shared_ptr<flutter::TaskRunner>                             ui_runner_;
   std::mutex                                                       mutex_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>     sink_;
 };
@@ -128,8 +134,7 @@ class VpnEventStreamHandler
 
 class IVpnManagerImpl {
  public:
-  IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler,
-                  std::shared_ptr<flutter::TaskRunner> ui_runner);
+  IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler, HWND msg_hwnd);
   ~IVpnManagerImpl();
 
   void Start(const std::string& config);
@@ -138,11 +143,12 @@ class IVpnManagerImpl {
 
  private:
   // Called from the vpn_easy state-change callback (arbitrary thread).
+  // Posts WM_VPN_STATE to msg_hwnd_ to marshal onto the UI thread.
   static void OnVpnStateChanged(void* arg, int new_state);
 
-  MockStorage*                          storage_;
-  VpnEventStreamHandler*                handler_;
-  std::shared_ptr<flutter::TaskRunner>  ui_runner_;
+  MockStorage*           storage_;
+  VpnEventStreamHandler* handler_;
+  HWND                   msg_hwnd_;
 };
 
 // ── Storage / server / routing managers (unchanged from mock) ─────────────────
@@ -208,6 +214,7 @@ class VpnPlugin : public flutter::Plugin {
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar);
 
   explicit VpnPlugin(
+      HWND msg_hwnd,
       std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel,
       std::shared_ptr<MockStorage>                   storage,
       std::unique_ptr<VpnEventStreamHandler>         handler,
@@ -222,6 +229,7 @@ class VpnPlugin : public flutter::Plugin {
   VpnPlugin& operator=(const VpnPlugin&)  = delete;
 
  private:
+  HWND                                                           msg_hwnd_;
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel_;
   std::shared_ptr<MockStorage>                    storage_;
   std::unique_ptr<VpnEventStreamHandler>          handler_;

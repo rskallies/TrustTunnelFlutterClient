@@ -1,3 +1,6 @@
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
 #include "vpn_plugin.h"
 
 #include <algorithm>
@@ -40,9 +43,8 @@ void MockStorage::SetupMockData() {
 
 // ── VpnEventStreamHandler ─────────────────────────────────────────────────────
 
-VpnEventStreamHandler::VpnEventStreamHandler(MockStorage* storage,
-                                             std::shared_ptr<flutter::TaskRunner> ui_runner)
-    : storage_(storage), ui_runner_(std::move(ui_runner)) {}
+VpnEventStreamHandler::VpnEventStreamHandler(MockStorage* storage)
+    : storage_(storage) {}
 
 void VpnEventStreamHandler::EmitState(VpnManagerState state) {
   std::lock_guard<std::mutex> lock(mutex_);
@@ -72,8 +74,8 @@ VpnEventStreamHandler::OnCancelInternal(const EncodableValue* /*arguments*/) {
 // ── IVpnManagerImpl — real vpn_easy bridge ───────────────────────────────────
 
 IVpnManagerImpl::IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler,
-                                 std::shared_ptr<flutter::TaskRunner> ui_runner)
-    : storage_(storage), handler_(handler), ui_runner_(std::move(ui_runner)) {}
+                                 HWND msg_hwnd)
+    : storage_(storage), handler_(handler), msg_hwnd_(msg_hwnd) {}
 
 IVpnManagerImpl::~IVpnManagerImpl() {
   // Ensure the engine is stopped if the plugin is torn down.
@@ -98,19 +100,16 @@ void IVpnManagerImpl::OnVpnStateChanged(void* arg, int new_state) {
 
   self->storage_->CurrentVpnState() = mapped;
 
-  // EmitState must be called on the UI thread.
-  self->ui_runner_->PostTask([self, mapped]() {
-    self->handler_->EmitState(mapped);
-  });
+  // Marshal to the UI thread via a message-only window.
+  ::PostMessage(self->msg_hwnd_, WM_VPN_STATE, static_cast<WPARAM>(mapped), 0);
 }
 
 void IVpnManagerImpl::Start(const std::string& config) {
   // Emit connecting immediately so the UI responds without waiting for the
   // engine's first state callback.
   storage_->CurrentVpnState() = VpnManagerState::kConnecting;
-  ui_runner_->PostTask([this]() {
-    handler_->EmitState(VpnManagerState::kConnecting);
-  });
+  ::PostMessage(msg_hwnd_, WM_VPN_STATE,
+                static_cast<WPARAM>(VpnManagerState::kConnecting), 0);
 
   // vpn_easy_start is async — it returns immediately and fires OnVpnStateChanged
   // as the engine transitions through its states.
@@ -120,9 +119,8 @@ void IVpnManagerImpl::Start(const std::string& config) {
 void IVpnManagerImpl::Stop() {
   vpn_easy_stop();
   storage_->CurrentVpnState() = VpnManagerState::kDisconnected;
-  ui_runner_->PostTask([this]() {
-    handler_->EmitState(VpnManagerState::kDisconnected);
-  });
+  ::PostMessage(msg_hwnd_, WM_VPN_STATE,
+                static_cast<WPARAM>(VpnManagerState::kDisconnected), 0);
 }
 
 VpnManagerState IVpnManagerImpl::GetCurrentState() {
@@ -267,18 +265,45 @@ void RoutingProfilesManagerImpl::RemoveAllRules(int64_t id) {
 
 // ── VpnPlugin ─────────────────────────────────────────────────────────────────
 
+// WndProc for the message-only window that marshals VPN state to the UI thread.
+static LRESULT CALLBACK VpnMsgWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+  if (msg == WM_VPN_STATE) {
+    auto* handler = reinterpret_cast<VpnEventStreamHandler*>(
+        ::GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    if (handler) {
+      handler->EmitState(static_cast<VpnManagerState>(wp));
+    }
+    return 0;
+  }
+  return ::DefWindowProc(hwnd, msg, wp, lp);
+}
+
 void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar) {
-  auto messenger  = registrar->messenger();
-  auto ui_runner  = registrar->task_runner();
+  auto messenger = registrar->messenger();
+
+  // Create a message-only window to marshal vpn_easy callbacks onto the UI thread.
+  static const wchar_t kWndClass[] = L"VpnPluginMsgWnd";
+  WNDCLASSW wc = {};
+  wc.lpfnWndProc   = VpnMsgWndProc;
+  wc.hInstance     = ::GetModuleHandle(nullptr);
+  wc.lpszClassName = kWndClass;
+  ::RegisterClassW(&wc);  // Ignores ERROR_CLASS_ALREADY_EXISTS on re-register.
+  HWND msg_hwnd = ::CreateWindowExW(0, kWndClass, nullptr, 0,
+                                    0, 0, 0, 0, HWND_MESSAGE, nullptr,
+                                    wc.hInstance, nullptr);
 
   auto storage = std::make_shared<MockStorage>();
-  auto handler = std::make_unique<VpnEventStreamHandler>(storage.get(), ui_runner);
+  auto handler = std::make_unique<VpnEventStreamHandler>(storage.get());
+
+  // Store handler pointer in the window so VpnMsgWndProc can reach it.
+  ::SetWindowLongPtr(msg_hwnd, GWLP_USERDATA,
+                     reinterpret_cast<LONG_PTR>(handler.get()));
 
   auto event_channel = std::make_unique<flutter::EventChannel<EncodableValue>>(
       messenger, "vpn_plugin_event_channel", &flutter::StandardMethodCodec::GetInstance());
   event_channel->SetStreamHandler(std::unique_ptr<VpnEventStreamHandler>(handler.get()));
 
-  auto vpn_manager     = std::make_unique<IVpnManagerImpl>(storage.get(), handler.get(), ui_runner);
+  auto vpn_manager = std::make_unique<IVpnManagerImpl>(storage.get(), handler.get(), msg_hwnd);
   auto storage_manager = std::make_unique<StorageManagerImpl>(storage.get());
   auto servers_manager = std::make_unique<ServersManagerImpl>(storage.get());
   auto routing_manager = std::make_unique<RoutingProfilesManagerImpl>(storage.get());
@@ -289,11 +314,13 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
   RoutingProfilesManagerSetupSetUp(messenger, routing_manager.get());
 
   registrar->AddPlugin(std::make_unique<VpnPlugin>(
-      std::move(event_channel), storage, std::move(handler), std::move(vpn_manager),
-      std::move(storage_manager), std::move(servers_manager), std::move(routing_manager)));
+      msg_hwnd, std::move(event_channel), storage, std::move(handler),
+      std::move(vpn_manager), std::move(storage_manager),
+      std::move(servers_manager), std::move(routing_manager)));
 }
 
 VpnPlugin::VpnPlugin(
+    HWND msg_hwnd,
     std::unique_ptr<flutter::EventChannel<EncodableValue>> event_channel,
     std::shared_ptr<MockStorage>                storage,
     std::unique_ptr<VpnEventStreamHandler>      handler,
@@ -301,7 +328,8 @@ VpnPlugin::VpnPlugin(
     std::unique_ptr<StorageManagerImpl>         storage_manager,
     std::unique_ptr<ServersManagerImpl>         servers_manager,
     std::unique_ptr<RoutingProfilesManagerImpl> routing_manager)
-    : event_channel_(std::move(event_channel)),
+    : msg_hwnd_(msg_hwnd),
+      event_channel_(std::move(event_channel)),
       storage_(std::move(storage)),
       handler_(std::move(handler)),
       vpn_manager_(std::move(vpn_manager)),
@@ -309,6 +337,11 @@ VpnPlugin::VpnPlugin(
       servers_manager_(std::move(servers_manager)),
       routing_manager_(std::move(routing_manager)) {}
 
-VpnPlugin::~VpnPlugin() = default;
+VpnPlugin::~VpnPlugin() {
+  if (msg_hwnd_) {
+    ::SetWindowLongPtr(msg_hwnd_, GWLP_USERDATA, 0);
+    ::DestroyWindow(msg_hwnd_);
+  }
+}
 
 }  // namespace vpn_plugin
