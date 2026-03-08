@@ -63,9 +63,10 @@ class TrayService with TrayListener {
   // ── Private ──────────────────────────────────────────────────────────────
 
   Future<void> _applyIcon() async {
+    final ext = Platform.isWindows ? 'ico' : 'png';
     final icon = _vpnState == VpnState.connected
-        ? 'assets/images/tray/tray_icon_connected.png'
-        : 'assets/images/tray/tray_icon.png';
+        ? 'assets/images/tray/tray_icon_connected.$ext'
+        : 'assets/images/tray/tray_icon.$ext';
     await trayManager.setIcon(icon);
     await trayManager.setToolTip(_tooltip);
   }
