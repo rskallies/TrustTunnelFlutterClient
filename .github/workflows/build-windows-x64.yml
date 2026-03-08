@@ -45,6 +45,12 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Generate pigeon bindings
+        working-directory: plugins/vpn_plugin
+        run: |
+          flutter pub get
+          dart run pigeon --input pigeons/platform_api.dart
+
       - name: Generate localizations
         run: dart run intl_utils:generate
 
