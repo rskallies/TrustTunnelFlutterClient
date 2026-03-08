@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <thread>
 
 // vpn_easy C API — provided by vpn_easy.dll built from TrustTunnelClient.
@@ -106,6 +107,18 @@ std::optional<FlutterError> IVpnManagerImpl::Start(const std::string& /*server_n
   storage_->CurrentVpnState() = VpnManagerState::kConnecting;
   ::PostMessage(msg_hwnd_, WM_VPN_STATE,
                 static_cast<WPARAM>(VpnManagerState::kConnecting), 0);
+
+  // Debug: write the TOML config to a file for inspection.
+  {
+    wchar_t path[MAX_PATH];
+    ::GetTempPathW(MAX_PATH, path);
+    std::wstring log_path = std::wstring(path) + L"vpn_easy_config.toml";
+    if (FILE* f = ::_wfopen(log_path.c_str(), L"w")) {
+      ::fwrite(config.c_str(), 1, config.size(), f);
+      ::fclose(f);
+    }
+  }
+
   vpn_easy_start(config.c_str(), &IVpnManagerImpl::OnVpnStateChanged, this);
   return std::nullopt;
 }
