@@ -159,6 +159,16 @@ std::optional<FlutterError> IVpnManagerImpl::Start(const std::string& /*server_n
     }
   }
 
+  // Redirect vpn_easy internal logs to a file for debugging.
+  {
+    std::wstring p = std::wstring(tmp) + L"vpn_easy_engine.log";
+    // Convert to narrow string for the C API.
+    int len = ::WideCharToMultiByte(CP_UTF8, 0, p.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::string narrow(len, '\0');
+    ::WideCharToMultiByte(CP_UTF8, 0, p.c_str(), -1, narrow.data(), len, nullptr, nullptr);
+    vpn_easy_set_log_file(narrow.c_str());
+  }
+
   vpn_easy_start(config.c_str(), &IVpnManagerImpl::OnVpnStateChanged, this);
 
   // Write post-start marker.
