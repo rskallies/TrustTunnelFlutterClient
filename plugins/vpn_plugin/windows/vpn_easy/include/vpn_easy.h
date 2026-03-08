@@ -29,6 +29,11 @@ WIN_EXPORT void vpn_easy_start(
  */
 WIN_EXPORT void vpn_easy_stop();
 
+/**
+ * Redirect vpn_easy debug logs to a file (append mode). Call before vpn_easy_start.
+ */
+WIN_EXPORT void vpn_easy_set_log_file(const char *path);
+
 #ifdef __cplusplus
 }; // extern "C"
 #endif
