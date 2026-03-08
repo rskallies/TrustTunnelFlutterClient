@@ -36,6 +36,12 @@ jobs:
           Move-Item vpn_easy_tmp/vpn_easy.dll plugins/vpn_plugin/windows/vpn_easy/bin/
           Move-Item vpn_easy_tmp/vpn_easy.lib plugins/vpn_plugin/windows/vpn_easy/lib/
 
+      - name: Download wintun (x64)
+        run: |
+          Invoke-WebRequest -Uri https://www.wintun.net/builds/wintun-0.14.1.zip -OutFile wintun.zip
+          Expand-Archive -Path wintun.zip -DestinationPath wintun_tmp
+          Move-Item wintun_tmp/wintun/bin/amd64/wintun.dll plugins/vpn_plugin/windows/vpn_easy/bin/
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:

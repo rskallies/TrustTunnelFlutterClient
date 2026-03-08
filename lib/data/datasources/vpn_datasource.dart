@@ -108,4 +108,8 @@ abstract class VpnDataSource {
   /// the most recent state known to the platform.
   /// {@endtemplate}
   Future<VpnState> requestState();
+
+  /// Enables or disables vpn_easy engine debug logging to a file.
+  /// No-op on non-Windows platforms.
+  Future<void> setDebugLogging({required bool enabled});
 }

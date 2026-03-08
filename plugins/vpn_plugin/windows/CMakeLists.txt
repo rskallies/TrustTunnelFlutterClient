@@ -57,9 +57,10 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE
   "${VPN_EASY_DIR}/lib/vpn_easy.lib"
 )
 
-# Copy the DLL into the Flutter app bundle so it is found at runtime.
+# Copy the DLLs into the Flutter app bundle so they are found at runtime.
 set(vpn_plugin_bundled_libraries
   "${VPN_EASY_DIR}/bin/vpn_easy.dll"
+  "${VPN_EASY_DIR}/bin/wintun.dll"
   PARENT_SCOPE
 )
 

@@ -98,35 +98,8 @@ void IVpnManagerImpl::OnVpnStateChanged(void* arg, int new_state) {
 
   self->storage_->CurrentVpnState() = mapped;
 
-  // Debug: log callback.
-  {
-    wchar_t tmp[MAX_PATH]; ::GetTempPathW(MAX_PATH, tmp);
-    std::wstring p = std::wstring(tmp) + L"vpn_easy_debug.txt";
-    FILE* f = nullptr; ::_wfopen_s(&f, p.c_str(), L"a");
-    if (f) {
-      char buf[256];
-      ::snprintf(buf, sizeof(buf), "OnVpnStateChanged: new_state=%d mapped=%d hwnd=%p IsWindow=%d\n",
-                 new_state, (int)mapped, (void*)self->msg_hwnd_, (int)::IsWindow(self->msg_hwnd_));
-      ::fwrite(buf, 1, ::strlen(buf), f);
-      ::fclose(f);
-    }
-  }
-
   // Marshal to the UI thread via a message-only window.
-  BOOL ok = ::PostMessage(self->msg_hwnd_, WM_VPN_STATE, static_cast<WPARAM>(mapped), 0);
-
-  // Debug: log PostMessage result.
-  {
-    wchar_t tmp[MAX_PATH]; ::GetTempPathW(MAX_PATH, tmp);
-    std::wstring p = std::wstring(tmp) + L"vpn_easy_debug.txt";
-    FILE* f = nullptr; ::_wfopen_s(&f, p.c_str(), L"a");
-    if (f) {
-      char buf[128];
-      ::snprintf(buf, sizeof(buf), "PostMessage result=%d\n", (int)ok);
-      ::fwrite(buf, 1, ::strlen(buf), f);
-      ::fclose(f);
-    }
-  }
+  ::PostMessage(self->msg_hwnd_, WM_VPN_STATE, static_cast<WPARAM>(mapped), 0);
 }
 
 std::optional<FlutterError> IVpnManagerImpl::Start(const std::string& /*server_name*/,
@@ -135,53 +108,22 @@ std::optional<FlutterError> IVpnManagerImpl::Start(const std::string& /*server_n
   ::PostMessage(msg_hwnd_, WM_VPN_STATE,
                 static_cast<WPARAM>(VpnManagerState::kConnecting), 0);
 
-  // Debug logging.
-  wchar_t tmp[MAX_PATH];
-  ::GetTempPathW(MAX_PATH, tmp);
+  vpn_easy_start(config.c_str(), &IVpnManagerImpl::OnVpnStateChanged, this);
+  return std::nullopt;
+}
 
-  // Write TOML config.
-  {
-    std::wstring p = std::wstring(tmp) + L"vpn_easy_config.toml";
-    FILE* f = nullptr; ::_wfopen_s(&f, p.c_str(), L"w");
-    if (f) { ::fwrite(config.c_str(), 1, config.size(), f); ::fclose(f); }
-  }
-
-  // Write pre-start marker.
-  {
-    std::wstring p = std::wstring(tmp) + L"vpn_easy_debug.txt";
-    FILE* f = nullptr; ::_wfopen_s(&f, p.c_str(), L"a");
-    if (f) {
-      char buf[256];
-      ::snprintf(buf, sizeof(buf), "Start() called. msg_hwnd_=%p IsWindow=%d\n",
-                 (void*)msg_hwnd_, (int)::IsWindow(msg_hwnd_));
-      ::fwrite(buf, 1, ::strlen(buf), f);
-      ::fclose(f);
-    }
-  }
-
-  // Redirect vpn_easy internal logs to a file for debugging.
-  {
+std::optional<FlutterError> IVpnManagerImpl::SetDebugLogging(bool enabled) {
+  if (enabled) {
+    wchar_t tmp[MAX_PATH];
+    ::GetTempPathW(MAX_PATH, tmp);
     std::wstring p = std::wstring(tmp) + L"vpn_easy_engine.log";
-    // Convert to narrow string for the C API.
     int len = ::WideCharToMultiByte(CP_UTF8, 0, p.c_str(), -1, nullptr, 0, nullptr, nullptr);
     std::string narrow(len, '\0');
     ::WideCharToMultiByte(CP_UTF8, 0, p.c_str(), -1, narrow.data(), len, nullptr, nullptr);
     vpn_easy_set_log_file(narrow.c_str());
+  } else {
+    vpn_easy_set_log_file(nullptr);
   }
-
-  vpn_easy_start(config.c_str(), &IVpnManagerImpl::OnVpnStateChanged, this);
-
-  // Write post-start marker.
-  {
-    std::wstring p = std::wstring(tmp) + L"vpn_easy_debug.txt";
-    FILE* f = nullptr; ::_wfopen_s(&f, p.c_str(), L"a");
-    if (f) {
-      const char* msg = "vpn_easy_start() returned.\n";
-      ::fwrite(msg, 1, ::strlen(msg), f);
-      ::fclose(f);
-    }
-  }
-
   return std::nullopt;
 }
 

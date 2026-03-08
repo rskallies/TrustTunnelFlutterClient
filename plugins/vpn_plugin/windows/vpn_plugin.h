@@ -132,6 +132,7 @@ class IVpnManagerImpl : public IVpnManager {
   std::optional<FlutterError> UpdateConfiguration(const std::string* server_name,
                                                   const std::string* config) override;
   ErrorOr<VpnManagerState> GetCurrentState() override;
+  std::optional<FlutterError> SetDebugLogging(bool enabled) override;
 
  private:
   // Called from the vpn_easy state-change callback (arbitrary thread).
