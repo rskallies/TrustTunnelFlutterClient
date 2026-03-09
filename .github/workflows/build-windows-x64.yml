@@ -36,6 +36,29 @@ jobs:
           Move-Item vpn_easy_tmp/vpn_easy.dll plugins/vpn_plugin/windows/vpn_easy/bin/
           Move-Item vpn_easy_tmp/vpn_easy.lib plugins/vpn_plugin/windows/vpn_easy/lib/
 
+      - name: Download deeplink-ffi binaries
+        env:
+          GH_TOKEN: ${{ secrets.VPNEASY_TOKEN }}
+        run: |
+          $runId = gh run list `
+            --repo rskallies/TrustTunnelClient `
+            --workflow "Build trusttunnel_deeplink_ffi.dll (Windows x64)" `
+            --status success `
+            --limit 1 `
+            --json databaseId `
+            --jq ".[0].databaseId"
+          Write-Host "Downloading deeplink-ffi artifacts from run $runId"
+          gh run download $runId `
+            --repo rskallies/TrustTunnelClient `
+            --name trusttunnel-deeplink-ffi-windows-x64 `
+            --dir deeplink_ffi_tmp
+          New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/deeplink_ffi/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/deeplink_ffi/lib | Out-Null
+          New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/deeplink_ffi/include | Out-Null
+          Move-Item deeplink_ffi_tmp/trusttunnel_deeplink_ffi.dll plugins/vpn_plugin/windows/deeplink_ffi/bin/
+          Move-Item deeplink_ffi_tmp/trusttunnel_deeplink_ffi.dll.lib plugins/vpn_plugin/windows/deeplink_ffi/lib/
+          Move-Item deeplink_ffi_tmp/trusttunnel_deeplink.h plugins/vpn_plugin/windows/deeplink_ffi/include/
+
       - name: Download wintun (x64)
         run: |
           Invoke-WebRequest -Uri https://www.wintun.net/builds/wintun-0.14.1.zip -OutFile wintun.zip
