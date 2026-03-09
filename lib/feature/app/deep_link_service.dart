@@ -15,7 +15,7 @@ Future<ServerDetailsData?> decodeDeepLink(String uri) async {
 
   final String toml;
   try {
-    toml = await IDeepLink.decode(uri: uri);
+    toml = await IDeepLink().decode(uri: uri);
   } catch (_) {
     return null;
   }

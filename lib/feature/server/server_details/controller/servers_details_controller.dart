@@ -9,6 +9,7 @@ import 'package:trusttunnel/data/repository/routing_repository.dart';
 import 'package:trusttunnel/data/repository/server_repository.dart';
 import 'package:trusttunnel/feature/server/server_details/controller/servers_details_states.dart';
 import 'package:trusttunnel/feature/server/server_details/domain/service/server_details_service.dart';
+import 'package:trusttunnel/feature/server/server_details/model/server_details_data.dart';
 
 /// {@template products_controller}
 /// Controller for managing products and purchase operations.
