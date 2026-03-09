@@ -20,7 +20,7 @@ jobs:
           GH_TOKEN: ${{ secrets.VPNEASY_TOKEN }}
         run: |
           $runId = gh run list `
-            --repo rskallies/TrustTunnelClient `
+            --repo TrustTunnel/TrustTunnelClient `
             --workflow "Build vpn_easy.dll (Windows x64)" `
             --status success `
             --limit 1 `
@@ -28,7 +28,7 @@ jobs:
             --jq ".[0].databaseId"
           Write-Host "Downloading vpn_easy artifacts from run $runId"
           gh run download $runId `
-            --repo rskallies/TrustTunnelClient `
+            --repo TrustTunnel/TrustTunnelClient `
             --name vpn_easy-windows-x64 `
             --dir vpn_easy_tmp
           New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/bin | Out-Null
@@ -86,18 +86,3 @@ jobs:
           path: installer_output/TrustTunnel-Setup-x64.exe
           retention-days: 30
 
-      - name: Delete previous failed runs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ids = gh run list `
-            --repo ${{ github.repository }} `
-            --workflow "Build Windows (x64)" `
-            --status failure `
-            --limit 20 `
-            --json databaseId `
-            --jq ".[].databaseId"
-          foreach ($id in $ids) {
-            gh run delete $id --repo ${{ github.repository }}
-            Write-Host "Deleted failed run $id"
-          }
