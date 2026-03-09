@@ -1,0 +1,88 @@
+name: Build Windows (x64)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-windows
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Download vpn_easy binaries
+        env:
+          GH_TOKEN: ${{ secrets.VPNEASY_TOKEN }}
+        run: |
+          $runId = gh run list `
+            --repo TrustTunnel/TrustTunnelClient `
+            --workflow "Build vpn_easy.dll (Windows x64)" `
+            --status success `
+            --limit 1 `
+            --json databaseId `
+            --jq ".[0].databaseId"
+          Write-Host "Downloading vpn_easy artifacts from run $runId"
+          gh run download $runId `
+            --repo TrustTunnel/TrustTunnelClient `
+            --name vpn_easy-windows-x64 `
+            --dir vpn_easy_tmp
+          New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/lib | Out-Null
+          Move-Item vpn_easy_tmp/vpn_easy.dll plugins/vpn_plugin/windows/vpn_easy/bin/
+          Move-Item vpn_easy_tmp/vpn_easy.lib plugins/vpn_plugin/windows/vpn_easy/lib/
+
+      - name: Download wintun (x64)
+        run: |
+          Invoke-WebRequest -Uri https://www.wintun.net/builds/wintun-0.14.1.zip -OutFile wintun.zip
+          Expand-Archive -Path wintun.zip -DestinationPath wintun_tmp
+          Move-Item wintun_tmp/wintun/bin/amd64/wintun.dll plugins/vpn_plugin/windows/vpn_easy/bin/
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Generate pigeon bindings
+        working-directory: plugins/vpn_plugin
+        run: |
+          flutter pub get
+          dart run pigeon --input pigeons/platform_api.dart
+
+      - name: Generate localizations
+        run: dart run intl_utils:generate
+
+      - name: Run build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trusttunnel-windows-x64
+          path: build/windows/x64/runner/Release/
+          retention-days: 30
+
+      - name: Build installer
+        run: |
+          New-Item -ItemType Directory -Force -Path installer_output | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\trusttunnel.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trusttunnel-windows-x64-installer
+          path: installer_output/TrustTunnel-Setup-x64.exe
+          retention-days: 30
+
