@@ -15,7 +15,7 @@
   · <a href="https://agrd.io/android_trusttunnel">Play Store</a>
 </p>
 
-**TrustTunnel Flutter Client** is a mobile VPN client for **Android and iOS**, built with Flutter.
+**TrustTunnel Flutter Client** is a VPN client for **Android, iOS, and Windows**, built with Flutter.
 It provides a clean and focused graphical interface for connecting to **self-hosted TrustTunnel VPN servers**.
 
 The application acts as a thin, user-facing layer on top of the TrustTunnel VPN stack. It does not attempt to hide the underlying architecture or networking model. Instead, it exposes core concepts — servers, endpoints, credentials, and transport protocols — in a clear and predictable form suitable for both beginners and experienced users.
@@ -306,6 +306,57 @@ Emulators and simulators do not fully replicate system VPN behavior and may intr
 
 For reliable results and correct VPN lifecycle handling, always validate functionality on real hardware.
 Connection state changes and errors displayed in the UI directly reflect real network and system conditions.
+
+## Windows Desktop Client
+
+This fork adds a fully functional **Windows x64 desktop client** on top of the upstream Android/iOS app.
+
+### Download
+
+Pre-built installers are published as GitHub releases:
+[Releases → TrustTunnel-Setup-x64.exe](https://github.com/rskallies/TrustTunnelFlutterClient/releases)
+
+The installer includes the MSVC runtime redistributable, `wintun.dll`, and all required DLLs.
+**Administrator privileges are required** to create the TUN network interface.
+
+### Windows-specific features
+
+- **System tray** — minimises to tray on close; right-click for Connect / Disconnect / Quit
+- **Debug logging** — toggle in Settings writes the VPN engine log to `%TEMP%\vpn_easy_engine.log`
+- **IPv6 support** — tunnels both IPv4 and IPv6 traffic
+- **`tt://` deep link import** — import a server configuration from a `tt://` URI in two ways:
+  - Paste it via the **link icon** (🔗) in the Servers screen app bar
+  - Launch the app with the URI as a command-line argument: `TrustTunnel.exe "tt://?..."`
+
+### Building for Windows
+
+Windows builds run entirely in GitHub Actions — no local Flutter or Dart installation needed.
+
+**Prerequisites:**
+- Fork of [`rskallies/TrustTunnelClient`](https://github.com/rskallies/TrustTunnelClient) with a `VPNEASY_TOKEN` secret (GitHub PAT with `read:packages` + `repo`)
+
+**Trigger a build:**
+```shell
+gh workflow run "Build Windows (x64)" --repo rskallies/TrustTunnelFlutterClient --ref windows-client
+```
+
+**Artifacts produced:**
+- `trusttunnel-windows-x64` — raw app bundle
+- `trusttunnel-windows-x64-installer` — `TrustTunnel-Setup-x64.exe` (also published to the `v0.1.0-windows` release)
+
+### Architecture notes
+
+The Windows VPN plugin bridges two native DLLs:
+
+| DLL | Source | Purpose |
+|-----|--------|---------|
+| `vpn_easy.dll` | [`rskallies/TrustTunnelClient`](https://github.com/rskallies/TrustTunnelClient) — `platform/windows` | VPN engine (C++) |
+| `trusttunnel_deeplink_ffi.dll` | [`rskallies/TrustTunnelClient`](https://github.com/rskallies/TrustTunnelClient) — `trusttunnel/deeplink-ffi` | `tt://` URI decoder (Rust) |
+
+Both DLLs are built by separate GitHub Actions workflows on `rskallies/TrustTunnelClient` and downloaded as artifacts during the Flutter build.
+
+The `tt://` URI format is a compact TLV binary payload, base64url-encoded. Full specification:
+[`TrustTunnel/TrustTunnel/DEEP_LINK.md`](https://github.com/TrustTunnel/TrustTunnel/blob/master/DEEP_LINK.md)
 
 ## License
 Apache 2.0
