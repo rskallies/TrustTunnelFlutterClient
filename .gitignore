@@ -82,3 +82,7 @@ lib/common/localization/generated/
 */Podfile.lock
 */.bundle
 
+
+# vpn_easy pre-built Windows binaries (must be built locally from TrustTunnelClient)
+plugins/vpn_plugin/windows/vpn_easy/lib/*.lib
+plugins/vpn_plugin/windows/vpn_easy/bin/*.dll
