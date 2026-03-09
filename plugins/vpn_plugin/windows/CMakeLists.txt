@@ -47,20 +47,35 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
 #
 set(VPN_EASY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vpn_easy")
 
+# ── trusttunnel_deeplink_ffi.dll ───────────────────────────────────────────────
+#
+# Deep-link decoder built from TrustTunnelClient (trusttunnel/deeplink-ffi).
+# Expected layout next to this plugin:
+#
+#   plugins/vpn_plugin/windows/deeplink_ffi/
+#     include/trusttunnel_deeplink.h
+#     lib/trusttunnel_deeplink_ffi.dll.lib  (import library)
+#     bin/trusttunnel_deeplink_ffi.dll
+#
+set(DEEPLINK_FFI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deeplink_ffi")
+
 target_include_directories(${PLUGIN_NAME} PRIVATE
   "${VPN_EASY_DIR}/include"
+  "${DEEPLINK_FFI_DIR}/include"
 )
 
 target_link_libraries(${PLUGIN_NAME} PRIVATE
   flutter
   flutter_wrapper_plugin
   "${VPN_EASY_DIR}/lib/vpn_easy.lib"
+  "${DEEPLINK_FFI_DIR}/lib/trusttunnel_deeplink_ffi.dll.lib"
 )
 
 # Copy the DLLs into the Flutter app bundle so they are found at runtime.
 set(vpn_plugin_bundled_libraries
   "${VPN_EASY_DIR}/bin/vpn_easy.dll"
   "${VPN_EASY_DIR}/bin/wintun.dll"
+  "${DEEPLINK_FFI_DIR}/bin/trusttunnel_deeplink_ffi.dll"
   PARENT_SCOPE
 )
 

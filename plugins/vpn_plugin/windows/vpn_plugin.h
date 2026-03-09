@@ -144,12 +144,27 @@ class IVpnManagerImpl : public IVpnManager {
   HWND                   msg_hwnd_;
 };
 
-// ── Deep link stub (required by pigeon registration) ─────────────────────────
+// ── Deep link decoder — bridges to trusttunnel_deeplink_ffi.dll ──────────────
+
+#include "trusttunnel_deeplink.h"
 
 class IDeepLinkImpl : public IDeepLink {
  public:
-  ErrorOr<std::string> Decode(const std::string& /*uri*/) override {
-    return std::string{};
+  ErrorOr<std::string> Decode(const std::string& uri) override {
+    DeepLinkError* err = nullptr;
+    char* result = trusttunnel_deeplink_decode(uri.c_str(), &err);
+    if (!result) {
+      std::string msg = "tt:// decode failed";
+      if (err) {
+        const char* m = trusttunnel_deeplink_error_message(err);
+        if (m) msg = m;
+        trusttunnel_deeplink_error_free(err);
+      }
+      return FlutterError("deeplink_error", msg);
+    }
+    std::string toml(result);
+    trusttunnel_deeplink_string_free(result);
+    return toml;
   }
 };
 
