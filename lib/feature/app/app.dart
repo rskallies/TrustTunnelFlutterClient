@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:trusttunnel/common/extensions/context_extensions.dart';
 import 'package:trusttunnel/common/localization/localization.dart';
 import 'package:trusttunnel/feature/navigation/navigation_screen.dart';
+import 'package:trusttunnel/feature/server/server_details/model/server_details_data.dart';
+import 'package:trusttunnel/feature/server/server_details/widgets/server_details_popup.dart';
 import 'package:window_manager/window_manager.dart';
 
 class App extends StatefulWidget {
-  const App({super.key});
+  final ValueNotifier<ServerDetailsData?>? pendingDeepLink;
+
+  const App({super.key, this.pendingDeepLink});
 
   @override
   State<App> createState() => _AppState();
@@ -18,10 +22,26 @@ class _AppState extends State<App> with WindowListener {
   static bool get _isDesktop =>
       Platform.isWindows || Platform.isMacOS || Platform.isLinux;
 
+  final _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
     if (_isDesktop) windowManager.addListener(this);
+    if (widget.pendingDeepLink != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openDeepLinkIfPending());
+    }
+  }
+
+  void _openDeepLinkIfPending() {
+    final data = widget.pendingDeepLink?.value;
+    if (data == null) return;
+    widget.pendingDeepLink!.value = null;
+    _navigatorKey.currentState?.push(
+      MaterialPageRoute<void>(
+        builder: (_) => ServerDetailsPopUp(initialData: data),
+      ),
+    );
   }
 
   @override
@@ -38,6 +58,7 @@ class _AppState extends State<App> with WindowListener {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: _navigatorKey,
     theme: context.dependencyFactory.lightThemeData,
     home: const NavigationScreen(),
     onGenerateTitle: (context) => context.ln.appTitle,

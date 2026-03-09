@@ -6,6 +6,7 @@ import 'package:trusttunnel/common/error/model/presentation_field.dart';
 import 'package:trusttunnel/common/extensions/context_extensions.dart';
 import 'package:trusttunnel/data/model/routing_profile.dart';
 import 'package:trusttunnel/feature/server/server_details/controller/servers_details_controller.dart';
+import 'package:trusttunnel/feature/server/server_details/model/server_details_data.dart';
 import 'package:trusttunnel/feature/server/server_details/controller/servers_details_states.dart';
 import 'package:trusttunnel/feature/server/server_details/model/server_details_data.dart';
 import 'package:trusttunnel/feature/server/server_details/domain/service/server_details_service.dart';
@@ -18,11 +19,13 @@ import 'package:trusttunnel/feature/server/server_details/widgets/scope/server_d
 class ServerDetailsScope extends StatefulWidget {
   final Widget child;
   final int? serverId;
+  final ServerDetailsData? initialData;
 
   /// {@macro products_scope_template}
   const ServerDetailsScope({
     required this.child,
     required this.serverId,
+    this.initialData,
     super.key,
   });
 
@@ -50,6 +53,7 @@ class _ServerDetailsScopeState extends State<ServerDetailsScope> {
       repository: repositoryFactory.serverRepository,
       detailsService: ServerDetailsServiceImpl(),
       serverId: widget.serverId,
+      initialData: widget.initialData,
     );
   }
 

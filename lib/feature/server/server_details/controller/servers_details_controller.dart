@@ -25,11 +25,21 @@ final class ServerDetailsController extends BaseStateController<ServerDetailsSta
     required RoutingRepository routingRepository,
     required ServerDetailsService detailsService,
     required int? serverId,
-    super.initialState = const ServerDetailsState.initial(),
+    ServerDetailsData? initialData,
   }) : _repository = repository,
        _routingRepository = routingRepository,
        _detailsService = detailsService,
-       _serverId = serverId;
+       _serverId = serverId,
+       super(
+         initialState: initialData != null
+             ? ServerDetailsState.idle(
+                 data: initialData,
+                 initialData: const ServerDetailsData(),
+                 fieldErrors: const [],
+                 routingProfiles: const [],
+               )
+             : const ServerDetailsState.initial(),
+       );
 
   /// Make a purchase for the given product ID
   void fetch() {
