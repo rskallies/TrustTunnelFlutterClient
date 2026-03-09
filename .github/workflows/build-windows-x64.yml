@@ -55,9 +55,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/deeplink_ffi/bin | Out-Null
           New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/deeplink_ffi/lib | Out-Null
           New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/deeplink_ffi/include | Out-Null
-          Move-Item deeplink_ffi_tmp/trusttunnel_deeplink_ffi.dll plugins/vpn_plugin/windows/deeplink_ffi/bin/
-          Move-Item deeplink_ffi_tmp/trusttunnel_deeplink_ffi.dll.lib plugins/vpn_plugin/windows/deeplink_ffi/lib/
-          Move-Item deeplink_ffi_tmp/trusttunnel_deeplink.h plugins/vpn_plugin/windows/deeplink_ffi/include/
+          Move-Item "deeplink_ffi_tmp/target/x86_64-pc-windows-msvc/release/trusttunnel_deeplink_ffi.dll" plugins/vpn_plugin/windows/deeplink_ffi/bin/
+          Move-Item "deeplink_ffi_tmp/target/x86_64-pc-windows-msvc/release/trusttunnel_deeplink_ffi.dll.lib" plugins/vpn_plugin/windows/deeplink_ffi/lib/
+          Move-Item "deeplink_ffi_tmp/deeplink-ffi/include/trusttunnel_deeplink.h" plugins/vpn_plugin/windows/deeplink_ffi/include/
 
       - name: Download wintun (x64)
         run: |
