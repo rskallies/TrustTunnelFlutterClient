@@ -334,7 +334,7 @@ Windows builds run entirely in GitHub Actions — no local Flutter or Dart insta
 
 **Trigger a build:**
 ```shell
-gh workflow run "Build Windows (x64)" --repo rskallies/TrustTunnelFlutterClient --ref windows-client
+gh workflow run "Build Windows (x64)" --repo rskallies/TrustTunnelFlutterClient --ref windows-client -f token=<BUILD_TOKEN>
 ```
 
 **Artifacts produced:**
