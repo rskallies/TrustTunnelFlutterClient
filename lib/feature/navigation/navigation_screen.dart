@@ -3,11 +3,16 @@ import 'package:trusttunnel/common/extensions/context_extensions.dart';
 import 'package:trusttunnel/common/utils/navigation_utils.dart';
 import 'package:trusttunnel/feature/navigation/widgets/custom_navigation_rail.dart';
 import 'package:trusttunnel/feature/routing/routing/widgets/routing_screen.dart';
+import 'package:trusttunnel/feature/server/server_details/model/server_details_data.dart';
+import 'package:trusttunnel/feature/server/server_details/widgets/server_details_popup.dart';
+import 'package:trusttunnel/feature/server/servers/widget/scope/servers_scope.dart';
 import 'package:trusttunnel/feature/server/servers/widget/servers_screen.dart';
 import 'package:trusttunnel/feature/settings/settings/settings_screen.dart';
 
 class NavigationScreen extends StatefulWidget {
-  const NavigationScreen({super.key});
+  final ValueNotifier<ServerDetailsData?>? pendingDeepLink;
+
+  const NavigationScreen({super.key, this.pendingDeepLink});
 
   @override
   State<NavigationScreen> createState() => _NavigationScreenState();
@@ -16,6 +21,22 @@ class NavigationScreen extends StatefulWidget {
 class _NavigationScreenState extends State<NavigationScreen> {
   final ValueNotifier<int> _selectedTabNotifier = ValueNotifier(0);
   final _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.pendingDeepLink != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openDeepLinkIfPending());
+    }
+  }
+
+  void _openDeepLinkIfPending() {
+    final data = widget.pendingDeepLink?.value;
+    if (data == null) return;
+    widget.pendingDeepLink!.value = null;
+    final controller = ServersScope.controllerOf(context, listen: false);
+    context.push(ServerDetailsPopUp(initialData: data)).then((_) => controller.fetchServers());
+  }
 
   @override
   Widget build(BuildContext context) => ColoredBox(
