@@ -3,6 +3,7 @@ import 'package:trusttunnel/common/assets/asset_icons.dart';
 import 'package:trusttunnel/common/extensions/context_extensions.dart';
 import 'package:trusttunnel/common/localization/localization.dart';
 import 'package:trusttunnel/data/model/server.dart';
+import 'package:trusttunnel/feature/app/deep_link_service.dart';
 import 'package:trusttunnel/feature/server/server_details/widgets/server_details_popup.dart';
 import 'package:trusttunnel/feature/server/servers/widget/scope/servers_scope.dart';
 import 'package:trusttunnel/feature/server/servers/widget/scope/servers_scope_aspect.dart';
@@ -47,6 +48,13 @@ class _ServersScreenViewState extends State<ServersScreenView> {
       child: Scaffold(
         appBar: CustomAppBar(
           title: context.ln.servers,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.link),
+              tooltip: 'Import from tt:// link',
+              onPressed: () => _showImportDialog(context),
+            ),
+          ],
         ),
         body: _servers.isEmpty
             ? const ServersEmptyPlaceholder()
@@ -84,5 +92,52 @@ class _ServersScreenViewState extends State<ServersScreenView> {
     );
 
     controller.fetchServers();
+  }
+
+  void _showImportDialog(BuildContext context) {
+    final controller = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Import from tt:// link'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'tt://?...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(context.ln.cancel),
+          ),
+          TextButton(
+            onPressed: () async {
+              final uri = controller.text.trim();
+              Navigator.of(dialogContext).pop();
+              if (uri.isEmpty) return;
+
+              final data = await decodeDeepLink(uri);
+              if (!context.mounted) return;
+
+              if (data == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Invalid or unsupported tt:// link.')),
+                );
+                return;
+              }
+
+              final serversController = ServersScope.controllerOf(context, listen: false);
+              await context.push(ServerDetailsPopUp(initialData: data));
+              if (context.mounted) serversController.fetchServers();
+            },
+            child: Text(context.ln.add),
+          ),
+        ],
+      ),
+    );
   }
 }
