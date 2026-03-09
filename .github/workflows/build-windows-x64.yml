@@ -73,6 +73,10 @@ jobs:
           path: build/windows/x64/runner/Release/
           retention-days: 30
 
+      - name: Download MSVC runtime redistributable
+        run: |
+          Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile installer\vc_redist.x64.exe
+
       - name: Build installer
         run: |
           New-Item -ItemType Directory -Force -Path installer_output | Out-Null
