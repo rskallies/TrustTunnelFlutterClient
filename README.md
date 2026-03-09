@@ -332,9 +332,6 @@ The installer includes the MSVC runtime redistributable, `wintun.dll`, and all r
 
 Windows builds run entirely in GitHub Actions — no local Flutter or Dart installation needed.
 
-**Prerequisites:**
-- A GitHub personal access token with `repo` scope, stored as the `VPNEASY_TOKEN` secret on this repository. The workflow uses it to download build artifacts (`vpn_easy.dll`, `trusttunnel_deeplink_ffi.dll`) from the [`rskallies/TrustTunnelClient`](https://github.com/rskallies/TrustTunnelClient) fork.
-
 **Trigger a build:**
 ```shell
 gh workflow run "Build Windows (x64)" --repo rskallies/TrustTunnelFlutterClient --ref windows-client

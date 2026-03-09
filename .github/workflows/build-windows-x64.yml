@@ -17,7 +17,7 @@ jobs:
 
       - name: Download vpn_easy binaries
         env:
-          GH_TOKEN: ${{ secrets.VPNEASY_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           $runId = gh run list `
             --repo rskallies/TrustTunnelClient `
@@ -38,7 +38,7 @@ jobs:
 
       - name: Download deeplink-ffi binaries
         env:
-          GH_TOKEN: ${{ secrets.VPNEASY_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           $runId = gh run list `
             --repo rskallies/TrustTunnelClient `
