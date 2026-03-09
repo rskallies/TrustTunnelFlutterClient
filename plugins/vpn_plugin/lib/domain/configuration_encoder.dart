@@ -58,7 +58,7 @@ final class ConfigurationEncoder extends Converter<Configuration, String> {
     final String dnsUpStreams = _parseToConfigList(configuration.endpoint.dnsUpStreams);
     final String hostName = _parseToConfigString(configuration.endpoint.hostName);
 
-    final bool hasIpv6 = false;
+    final bool hasIpv6 = configuration.endpoint.hasIpv6;
 
     final String addresses = _parseHostAddresses(configuration.endpoint.addresses);
 

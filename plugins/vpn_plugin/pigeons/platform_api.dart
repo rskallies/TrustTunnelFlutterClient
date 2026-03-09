@@ -110,6 +110,11 @@ abstract class IVpnManager {
   /// - diagnose platform-side lifecycle issues.
   /// {@endtemplate}
   VpnManagerState getCurrentState();
+
+  /// Enables or disables debug logging to a file in the system temp directory.
+  /// When enabled, logs are written to `vpn_easy_engine.log` in %TEMP%.
+  /// No-op on non-Windows platforms.
+  void setDebugLogging({required bool enabled});
 }
 
 /// {@template vpn_manager_state}

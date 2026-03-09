@@ -89,7 +89,7 @@ class VpnDataSourceImpl implements VpnDataSource {
 
     final endPoint = Endpoint(
       hostName: server.domain,
-      hasIpv6: false,
+      hasIpv6: true,
       username: server.username,
       password: server.password,
       addresses: [
@@ -141,7 +141,7 @@ class VpnDataSourceImpl implements VpnDataSource {
 
     final endPoint = Endpoint(
       hostName: server.domain,
-      hasIpv6: false,
+      hasIpv6: true,
       username: server.username,
       password: server.password,
       addresses: [
@@ -171,6 +171,10 @@ class VpnDataSourceImpl implements VpnDataSource {
 
   @override
   Future<void> deleteConfiguration() => _platformApi.updateConfiguration(serverName: null, configuration: null);
+
+  @override
+  Future<void> setDebugLogging({required bool enabled}) =>
+      _platformApi.setDebugLogging(enabled: enabled);
 
   /// Computes the effective exclusion list based on routing mode.
   ///

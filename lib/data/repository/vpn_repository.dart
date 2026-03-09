@@ -26,6 +26,8 @@ abstract class VpnRepository {
   Future<VpnState> requestState();
 
   Future<void> stop();
+
+  Future<void> setDebugLogging({required bool enabled});
 }
 
 class VpnRepositoryImpl implements VpnRepository {
@@ -72,4 +74,8 @@ class VpnRepositoryImpl implements VpnRepository {
 
   @override
   Future<void> deleteConfiguration() => _vpnDataSource.deleteConfiguration();
+
+  @override
+  Future<void> setDebugLogging({required bool enabled}) =>
+      _vpnDataSource.setDebugLogging(enabled: enabled);
 }

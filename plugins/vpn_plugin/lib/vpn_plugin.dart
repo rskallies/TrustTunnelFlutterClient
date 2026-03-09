@@ -70,6 +70,10 @@ abstract class VpnPlugin {
   /// Emits [QueryLogRow] objects representing network traffic passing through the VPN.
   /// {@endtemplate}
   abstract final Stream<QueryLogRow> queryLog;
+
+  /// Enables or disables debug logging to `vpn_easy_engine.log` in the system
+  /// temp directory. No-op on non-Windows platforms.
+  Future<void> setDebugLogging({required bool enabled});
 }
 
 /// {@template vpn_plugin_impl}
@@ -122,6 +126,10 @@ class VpnPluginImpl implements VpnPlugin {
   /// {@macro vpn_plugin_stop}
   @override
   Future<void> stop() => _api.stop();
+
+  @override
+  Future<void> setDebugLogging({required bool enabled}) =>
+      _api.setDebugLogging(enabled: enabled);
 
   /// {@macro vpn_plugin_states}
   @override
