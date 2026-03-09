@@ -20,7 +20,7 @@ jobs:
           GH_TOKEN: ${{ secrets.VPNEASY_TOKEN }}
         run: |
           $runId = gh run list `
-            --repo TrustTunnel/TrustTunnelClient `
+            --repo rskallies/TrustTunnelClient `
             --workflow "Build vpn_easy.dll (Windows x64)" `
             --status success `
             --limit 1 `
@@ -28,7 +28,7 @@ jobs:
             --jq ".[0].databaseId"
           Write-Host "Downloading vpn_easy artifacts from run $runId"
           gh run download $runId `
-            --repo TrustTunnel/TrustTunnelClient `
+            --repo rskallies/TrustTunnelClient `
             --name vpn_easy-windows-x64 `
             --dir vpn_easy_tmp
           New-Item -ItemType Directory -Force -Path plugins/vpn_plugin/windows/vpn_easy/bin | Out-Null
