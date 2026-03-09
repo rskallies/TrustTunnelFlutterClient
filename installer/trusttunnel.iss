@@ -37,6 +37,7 @@ Source: "{#BuildDir}\{#AppExeName}";         DestDir: "{app}"; Flags: ignorevers
 ; DLLs
 Source: "{#BuildDir}\flutter_windows.dll";              DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\vpn_easy.dll";                     DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BuildDir}\trusttunnel_deeplink_ffi.dll";     DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\vpn_plugin_plugin.dll";            DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\wintun.dll";                       DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildDir}\sqlite3.dll";                      DestDir: "{app}"; Flags: ignoreversion
