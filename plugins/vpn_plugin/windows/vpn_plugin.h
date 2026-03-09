@@ -72,9 +72,9 @@ static constexpr UINT WM_VPN_STATE = WM_USER + 1;
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 
-class MockStorage {
+class WindowsStorage {
  public:
-  MockStorage();
+  WindowsStorage();
 
   std::vector<Server>&           AllServers()              { return servers_; }
   std::vector<RoutingProfile>&   AllRoutingProfiles()      { return routing_profiles_; }
@@ -84,7 +84,7 @@ class MockStorage {
   std::vector<VpnRequest>&       AllRequests()             { return requests_; }
 
  private:
-  void SetupMockData();
+  void InitDefaultData();
 
   std::vector<Server>          servers_;
   std::vector<RoutingProfile>  routing_profiles_;
@@ -99,7 +99,7 @@ class MockStorage {
 class VpnEventStreamHandler
     : public flutter::StreamHandler<flutter::EncodableValue> {
  public:
-  explicit VpnEventStreamHandler(MockStorage* storage);
+  explicit VpnEventStreamHandler(WindowsStorage* storage);
 
   // Called on the UI thread only (via WM_VPN_STATE message dispatch).
   void EmitState(VpnManagerState state);
@@ -113,7 +113,7 @@ class VpnEventStreamHandler
   OnCancelInternal(const flutter::EncodableValue* arguments) override;
 
  private:
-  MockStorage*                                                     storage_;
+  WindowsStorage*                                                     storage_;
   std::mutex                                                       mutex_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>     sink_;
 };
@@ -122,7 +122,7 @@ class VpnEventStreamHandler
 
 class IVpnManagerImpl : public IVpnManager {
  public:
-  IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler, HWND msg_hwnd);
+  IVpnManagerImpl(WindowsStorage* storage, VpnEventStreamHandler* handler, HWND msg_hwnd);
   ~IVpnManagerImpl() override;
 
   // IVpnManager overrides.
@@ -139,7 +139,7 @@ class IVpnManagerImpl : public IVpnManager {
   // Posts WM_VPN_STATE to msg_hwnd_ to marshal onto the UI thread.
   static void OnVpnStateChanged(void* arg, int new_state);
 
-  MockStorage*           storage_;
+  WindowsStorage*           storage_;
   VpnEventStreamHandler* handler_;
   HWND                   msg_hwnd_;
 };
@@ -157,7 +157,7 @@ class IDeepLinkImpl : public IDeepLink {
 
 class StorageManagerImpl {
  public:
-  explicit StorageManagerImpl(MockStorage* storage) : storage_(storage) {}
+  explicit StorageManagerImpl(WindowsStorage* storage) : storage_(storage) {}
   void SetExcludedRoutes(const std::string& routes)               { storage_->CurrentExcludedRoutes() = routes; }
   void SetRoutingProfiles(const std::vector<RoutingProfile>& p)   { storage_->AllRoutingProfiles() = p; }
   void SetSelectedServerId(int64_t id)                            { storage_->CurrentSelectedServerId() = id; }
@@ -169,12 +169,12 @@ class StorageManagerImpl {
   std::vector<Server>          GetAllServers()        { return storage_->AllServers(); }
 
  private:
-  MockStorage* storage_;
+  WindowsStorage* storage_;
 };
 
 class ServersManagerImpl {
  public:
-  explicit ServersManagerImpl(MockStorage* storage) : storage_(storage) {}
+  explicit ServersManagerImpl(WindowsStorage* storage) : storage_(storage) {}
   AddNewServerResult AddNewServer(const std::string& name, const std::string& ip,
                                   const std::string& domain, const std::string& user,
                                   const std::string& pass, VpnProtocol proto,
@@ -192,12 +192,12 @@ class ServersManagerImpl {
   static void                      Trim(std::string& s);
 
  private:
-  MockStorage* storage_;
+  WindowsStorage* storage_;
 };
 
 class RoutingProfilesManagerImpl {
  public:
-  explicit RoutingProfilesManagerImpl(MockStorage* storage) : storage_(storage) {}
+  explicit RoutingProfilesManagerImpl(WindowsStorage* storage) : storage_(storage) {}
   void                        AddNewProfile();
   std::vector<RoutingProfile> GetAllProfiles() { return storage_->AllRoutingProfiles(); }
   void SetDefaultRoutingMode(int64_t id, RoutingMode mode);
@@ -206,7 +206,7 @@ class RoutingProfilesManagerImpl {
   void RemoveAllRules(int64_t id);
 
  private:
-  MockStorage* storage_;
+  WindowsStorage* storage_;
 };
 
 // ── Plugin ────────────────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ class VpnPlugin : public flutter::Plugin {
   explicit VpnPlugin(
       HWND msg_hwnd,
       std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel,
-      std::shared_ptr<MockStorage>                   storage,
+      std::shared_ptr<WindowsStorage>                   storage,
       std::unique_ptr<IVpnManagerImpl>               vpn_manager,
       std::unique_ptr<StorageManagerImpl>            storage_manager,
       std::unique_ptr<ServersManagerImpl>            servers_manager,
@@ -232,7 +232,7 @@ class VpnPlugin : public flutter::Plugin {
  private:
   HWND                                                            msg_hwnd_;
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel_;
-  std::shared_ptr<MockStorage>                    storage_;
+  std::shared_ptr<WindowsStorage>                    storage_;
   std::unique_ptr<IVpnManagerImpl>                vpn_manager_;
   std::unique_ptr<StorageManagerImpl>             storage_manager_;
   std::unique_ptr<ServersManagerImpl>             servers_manager_;

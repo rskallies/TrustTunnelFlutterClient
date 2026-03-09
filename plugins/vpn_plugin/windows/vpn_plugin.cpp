@@ -12,11 +12,11 @@ using flutter::EncodableValue;
 
 namespace vpn_plugin {
 
-// ── MockStorage ───────────────────────────────────────────────────────────────
+// ── WindowsStorage ────────────────────────────────────────────────────────────
 
-MockStorage::MockStorage() { SetupMockData(); }
+WindowsStorage::WindowsStorage() { InitDefaultData(); }
 
-void MockStorage::SetupMockData() {
+void WindowsStorage::InitDefaultData() {
   routing_profiles_ = {
       RoutingProfile{1, "Default Profile", RoutingMode::kVpn,
                      {"192.168.1.0/24", "10.0.0.0/8"}, {"*"}},
@@ -41,7 +41,7 @@ void MockStorage::SetupMockData() {
 
 // ── VpnEventStreamHandler ─────────────────────────────────────────────────────
 
-VpnEventStreamHandler::VpnEventStreamHandler(MockStorage* storage)
+VpnEventStreamHandler::VpnEventStreamHandler(WindowsStorage* storage)
     : storage_(storage) {}
 
 void VpnEventStreamHandler::EmitState(VpnManagerState state) {
@@ -71,7 +71,7 @@ VpnEventStreamHandler::OnCancelInternal(const EncodableValue* /*arguments*/) {
 
 // ── IVpnManagerImpl — real vpn_easy bridge ───────────────────────────────────
 
-IVpnManagerImpl::IVpnManagerImpl(MockStorage* storage, VpnEventStreamHandler* handler,
+IVpnManagerImpl::IVpnManagerImpl(WindowsStorage* storage, VpnEventStreamHandler* handler,
                                  HWND msg_hwnd)
     : storage_(storage), handler_(handler), msg_hwnd_(msg_hwnd) {}
 
@@ -309,7 +309,7 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
                                     0, 0, 0, 0, HWND_MESSAGE, nullptr,
                                     wc.hInstance, nullptr);
 
-  auto storage = std::make_shared<MockStorage>();
+  auto storage = std::make_shared<WindowsStorage>();
   auto handler = std::make_unique<VpnEventStreamHandler>(storage.get());
   auto* handler_raw = handler.get();
 
@@ -341,7 +341,7 @@ void VpnPlugin::RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar
 VpnPlugin::VpnPlugin(
     HWND msg_hwnd,
     std::unique_ptr<flutter::EventChannel<EncodableValue>> event_channel,
-    std::shared_ptr<MockStorage>                storage,
+    std::shared_ptr<WindowsStorage>                storage,
     std::unique_ptr<IVpnManagerImpl>            vpn_manager,
     std::unique_ptr<StorageManagerImpl>         storage_manager,
     std::unique_ptr<ServersManagerImpl>         servers_manager,
